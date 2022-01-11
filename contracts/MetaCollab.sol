@@ -14,7 +14,7 @@ import "./libraries/SignatureDecoder.sol";
 contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    address public giver;
+    address public funder;
     address public doer;
 
     enum Status {
@@ -49,8 +49,12 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     event GigLockedForDispute(uint256 indexed gigId);
     event GigCancelled(uint256 indexed gigId);
     event GigExpired(uint256 indexed gigId);
-    event GigDone(uint256 indexed gigId, uint8 giverShare, uint8 doerShare);
-    event GigResolved(uint256 indexed gigId, uint8 giverShare, uint8 doerShare);
+    event GigDone(uint256 indexed gigId, uint8 funderShare, uint8 doerShare);
+    event GigResolved(
+        uint256 indexed gigId,
+        uint8 funderShare,
+        uint8 doerShare
+    );
 
     mapping(uint256 => Gig) public gigs;
     uint256 public gigCount;
@@ -58,26 +62,30 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     // solhint-disable-next-line no-empty-blocks
     constructor() initializer {}
 
-    function init(address _giver, address _doer) external override initializer {
-        require(_giver != address(0), "invalid giver");
+    function init(address _funder, address _doer)
+        external
+        override
+        initializer
+    {
+        require(_funder != address(0), "invalid funder");
         require(_doer != address(0), "invalid doer");
 
-        giver = _giver;
+        funder = _funder;
         doer = _doer;
     }
 
     modifier verified(bytes calldata _data, bytes calldata _signatures) {
-        SignatureDecoder.verifySignatures(_data, _signatures, giver, doer);
+        SignatureDecoder.verifySignatures(_data, _signatures, funder, doer);
         _;
     }
 
-    modifier onlyGiver() {
-        require(_msgSender() == giver, "only giver");
+    modifier onlyFunder() {
+        require(_msgSender() == funder, "only funder");
         _;
     }
 
     modifier onlyParty() {
-        require(_msgSender() == giver || _msgSender() == doer, "only party");
+        require(_msgSender() == funder || _msgSender() == doer, "only party");
         _;
     }
 
@@ -188,7 +196,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         require(gig.status == Status.init, "invalid gig");
         for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
             IERC20 token = IERC20(gig.tokens[i]);
-            token.safeTransferFrom(giver, address(this), gig.amounts[i]);
+            token.safeTransferFrom(funder, address(this), gig.amounts[i]);
         }
         gig.status = Status.active;
 
@@ -212,19 +220,19 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
 
     function _distributeGigRewards(
         uint256 _gigId,
-        uint8 _giverShare,
+        uint8 _funderShare,
         uint8 _doerShare
     ) internal {
-        uint8 denom = _giverShare + _doerShare;
+        uint8 denom = _funderShare + _doerShare;
         require(denom != 0, "invalid distribution");
         Gig storage gig = gigs[_gigId];
 
         for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
-            uint256 giverReward = (gig.amounts[i] * _giverShare) / denom;
-            uint256 doerReward = gig.amounts[i] - giverReward;
+            uint256 funderReward = (gig.amounts[i] * _funderShare) / denom;
+            uint256 doerReward = gig.amounts[i] - funderReward;
             IERC20 token = IERC20(gig.tokens[i]);
-            if (giverReward > 0) {
-                token.safeTransferFrom(address(this), giver, giverReward);
+            if (funderReward > 0) {
+                token.safeTransferFrom(address(this), funder, funderReward);
             }
             if (doerReward > 0) {
                 token.safeTransferFrom(address(this), doer, doerReward);
@@ -236,7 +244,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         external
         override
         nonReentrant
-        onlyGiver
+        onlyFunder
     {
         Gig storage gig = gigs[_gigId];
         require(gig.status == Status.active, "invalid gig");
@@ -291,7 +299,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         (
             address _collab,
             uint256 _gigId,
-            uint8 _giverShare,
+            uint8 _funderShare,
             uint8 _doerShare
         ) = abi.decode(_data, (address, uint256, uint8, uint8));
         require(_collab == address(this), "invalid data");
@@ -301,18 +309,18 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             "invalid gig"
         );
         gig.status = Status.done;
-        _distributeGigRewards(_gigId, _giverShare, _doerShare);
-        emit GigDone(_gigId, _giverShare, _doerShare);
+        _distributeGigRewards(_gigId, _funderShare, _doerShare);
+        emit GigDone(_gigId, _funderShare, _doerShare);
     }
 
     function _resolveGigRewards(
         uint256 _gigId,
-        uint8 _giverShare,
+        uint8 _funderShare,
         uint8 _doerShare
     ) internal {
         Gig storage gig = gigs[_gigId];
         require(gig.status == Status.locked, "invalid gig");
-        uint8 denom = _giverShare + _doerShare;
+        uint8 denom = _funderShare + _doerShare;
         uint8 feeDenom = gig.resolverFeeRatio[0] + gig.resolverFeeRatio[1];
         require(denom != 0 && feeDenom != 0, "invalid distribution");
 
@@ -320,8 +328,8 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             uint256 resolverReward = (gig.amounts[i] *
                 gig.resolverFeeRatio[0]) / feeDenom;
             uint256 partyReward = gig.amounts[i] - resolverReward;
-            uint256 giverReward = (partyReward * _giverShare) / denom;
-            uint256 doerReward = partyReward - giverReward;
+            uint256 funderReward = (partyReward * _funderShare) / denom;
+            uint256 doerReward = partyReward - funderReward;
             IERC20 token = IERC20(gig.tokens[i]);
             if (resolverReward > 0) {
                 token.safeTransferFrom(
@@ -330,8 +338,8 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
                     resolverReward
                 );
             }
-            if (giverReward > 0) {
-                token.safeTransferFrom(address(this), giver, giverReward);
+            if (funderReward > 0) {
+                token.safeTransferFrom(address(this), funder, funderReward);
             }
             if (doerReward > 0) {
                 token.safeTransferFrom(address(this), doer, doerReward);
@@ -342,11 +350,11 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
 
     function resolveGig(
         uint256 _gigId,
-        uint8 _giverShare,
+        uint8 _funderShare,
         uint8 _doerShare
     ) external override nonReentrant onlyResolver(_gigId) {
-        _resolveGigRewards(_gigId, _giverShare, _doerShare);
-        emit GigResolved(_gigId, _giverShare, _doerShare);
+        _resolveGigRewards(_gigId, _funderShare, _doerShare);
+        emit GigResolved(_gigId, _funderShare, _doerShare);
     }
 
     function updateGigHash(bytes calldata _data, bytes calldata _signatures)

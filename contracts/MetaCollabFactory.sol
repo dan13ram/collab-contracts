@@ -21,10 +21,10 @@ contract MetaCollabFactory is ICollabFactory {
 
     function _newCollab(
         address _collabAddress,
-        address _giver,
+        address _funder,
         address _doer
     ) internal {
-        ICollab(_collabAddress).init(_giver, _doer);
+        ICollab(_collabAddress).init(_funder, _doer);
 
         _collabs[collabCount] = _collabAddress;
         emit LogNewCollab(collabCount, _collabAddress);
@@ -32,14 +32,14 @@ contract MetaCollabFactory is ICollabFactory {
         collabCount++;
     }
 
-    function create(address _giver, address _doer)
+    function create(address _funder, address _doer)
         external
         override
         returns (address)
     {
         address collabAddress = Clones.clone(implementation);
 
-        _newCollab(collabAddress, _giver, _doer);
+        _newCollab(collabAddress, _funder, _doer);
 
         return collabAddress;
     }
@@ -54,7 +54,7 @@ contract MetaCollabFactory is ICollabFactory {
     }
 
     function createDeterministic(
-        address _giver,
+        address _funder,
         address _doer,
         bytes32 _salt
     ) external override returns (address) {
@@ -63,7 +63,7 @@ contract MetaCollabFactory is ICollabFactory {
             _salt
         );
 
-        _newCollab(collabAddress, _giver, _doer);
+        _newCollab(collabAddress, _funder, _doer);
 
         return collabAddress;
     }

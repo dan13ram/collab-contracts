@@ -3,7 +3,7 @@
 pragma solidity ^0.8.11;
 
 interface ICollab {
-    function init(address _giver, address _doer) external;
+    function init(address _funder, address _doer) external;
 
     function createNewGig(bytes calldata _data, bytes calldata _signatures)
         external;
@@ -23,7 +23,7 @@ interface ICollab {
 
     function resolveGig(
         uint256 _gigId,
-        uint8 _giverShare,
+        uint8 _funderShare,
         uint8 _doerShare
     ) external;
 
