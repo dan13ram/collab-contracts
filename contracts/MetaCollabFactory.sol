@@ -9,8 +9,14 @@ import "./interfaces/ICollab.sol";
 contract MetaCollabFactory is ICollabFactory {
     uint256 public collabCount = 0;
     mapping(uint256 => address) internal _collabs;
+    mapping(address => uint256) public flatFees;
 
     event LogNewCollab(uint256 indexed index, address collab);
+    event UpdateFlatFee(
+        address indexed resolver,
+        uint256 indexed flatFee,
+        bytes32 details
+    );
 
     address public immutable implementation;
 
@@ -24,7 +30,7 @@ contract MetaCollabFactory is ICollabFactory {
         address _funder,
         address _doer
     ) internal {
-        ICollab(_collabAddress).init(_funder, _doer);
+        ICollab(_collabAddress).init(_funder, _doer, address(this));
 
         _collabs[collabCount] = _collabAddress;
         emit LogNewCollab(collabCount, _collabAddress);
@@ -70,5 +76,10 @@ contract MetaCollabFactory is ICollabFactory {
 
     function getCollabAddress(uint256 _index) public view returns (address) {
         return _collabs[_index];
+    }
+
+    function updateFlatFee(uint256 _flatFee, bytes32 _hash) external {
+        flatFees[msg.sender] = _flatFee;
+        emit UpdateFlatFee(msg.sender, _flatFee, _hash);
     }
 }
