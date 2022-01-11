@@ -14,17 +14,22 @@ interface ICollab {
     function startGig(bytes calldata _data, bytes calldata _signatures)
         external;
 
-    // function cancelGig() external;
+    function cancelGig(uint256 _gigId) external;
 
-    // function lockGig() external;
+    function completeGig(bytes calldata _data, bytes calldata _signatures)
+        external;
 
-    // function resolveGig() external;
+    function lockGig(uint256 _gigId) external payable;
 
-    // function completeGig() external;
+    function resolveGig(
+        uint256 _gigId,
+        uint8 _giverShare,
+        uint8 _doerShare
+    ) external;
 
-    // function updateGigHash() external;
+    function updateGigHash(bytes calldata _data, bytes calldata _signatures)
+        external;
 
-    // function updateGigResolver() external;
-
-    // function updateGigRewards() external;
+    function updateGigResolver(bytes calldata _data, bytes calldata _signatures)
+        external;
 }

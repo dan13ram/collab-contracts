@@ -22,35 +22,35 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         active,
         countdown,
         locked,
-        cancel,
-        done,
-        expired
+        resolved,
+        cancelled,
+        expired,
+        done
     }
 
     struct Gig {
         Status status;
         address[] tokens;
         uint256[] amounts;
-        uint256[2] rewardRatio;
         uint256 startTimestamp;
         uint256 countdownTimestamp;
         uint256 endTimestamp;
         uint256[3] durations; // [cancellationDuration, countdownDuration, expirationDuration]
         address resolver;
-        uint256 fixedFee;
-        uint256[2] resolverFeeRatio;
+        uint256 fixedResolverFee;
+        uint8[2] resolverFeeRatio;
     }
 
     event GigInit(uint256 indexed gigId, bytes hash);
     event GigActive(uint256 indexed gigId);
     event GigHashUpdated(uint256 indexed gigId, bytes hash);
     event GigResolverUpdated(uint256 indexed gigId);
-    event GigRewardsUpdated(uint256 indexed gigId);
     event GigLockCountdownStarted(uint256 indexed gigId);
     event GigLockedForDispute(uint256 indexed gigId);
     event GigCancelled(uint256 indexed gigId);
     event GigExpired(uint256 indexed gigId);
-    event GigDone();
+    event GigDone(uint256 indexed gigId, uint8 giverShare, uint8 doerShare);
+    event GigResolved(uint256 indexed gigId, uint8 giverShare, uint8 doerShare);
 
     mapping(uint256 => Gig) public gigs;
     uint256 public gigCount;
@@ -68,6 +68,22 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         _;
     }
 
+    modifier onlyGiver() {
+        require(_msgSender() == giver, "only giver");
+        _;
+    }
+
+    modifier onlyParty() {
+        require(_msgSender() == giver || _msgSender() == doer, "only party");
+        _;
+    }
+
+    modifier onlyResolver(uint256 _gigId) {
+        Gig storage gig = gigs[_gigId];
+        require(_msgSender() == gig.resolver, "only resolver");
+        _;
+    }
+
     function _newGig(
         bytes memory _hash,
         address[] memory _tokens,
@@ -79,15 +95,13 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         gig.status = Status.init;
         gig.tokens = _tokens;
         gig.amounts = _amounts;
-        gig.rewardRatio[0] = 0;
-        gig.rewardRatio[1] = 1;
         gig.startTimestamp = block.timestamp;
         require(_durations[2] > 0, "invalid expiration duration");
         gig.durations = _durations;
 
         if (_resolver != address(0)) {
             gig.resolver = _resolver;
-            // init resolver fees
+            // TODO: init resolver fees
         }
 
         emit GigInit(gigCount, _hash);
@@ -170,8 +184,8 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         Gig storage gig = gigs[_gigId];
         require(gig.status == Status.init, "invalid gig");
         for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
-            IERC20 erc20 = IERC20(gig.tokens[i]);
-            erc20.safeTransferFrom(giver, address(this), gig.amounts[i]);
+            IERC20 token = IERC20(gig.tokens[i]);
+            token.safeTransferFrom(giver, address(this), gig.amounts[i]);
         }
         gig.status = Status.active;
 
@@ -191,5 +205,188 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         require(_collab == address(this), "invalid data");
 
         _startGig(_gigId);
+    }
+
+    function _distributeGigRewards(
+        uint256 _gigId,
+        uint8 _giverShare,
+        uint8 _doerShare
+    ) internal {
+        uint8 denom = _giverShare + _doerShare;
+        require(denom != 0, "invalid distribution");
+        Gig storage gig = gigs[_gigId];
+
+        for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
+            uint256 giverReward = (gig.amounts[i] * _giverShare) / denom;
+            uint256 doerReward = gig.amounts[i] - giverReward;
+            IERC20 token = IERC20(gig.tokens[i]);
+            if (giverReward > 0) {
+                token.safeTransferFrom(address(this), giver, giverReward);
+            }
+            if (doerReward > 0) {
+                token.safeTransferFrom(address(this), doer, doerReward);
+            }
+        }
+    }
+
+
+    function cancelGig(uint256 _gigId)
+        external
+        override
+        nonReentrant
+        onlyGiver
+    {
+        Gig storage gig = gigs[_gigId];
+        require(gig.status == Status.active, "invalid gig");
+        uint256 timeElapsed = block.timestamp - gig.startTimestamp;
+
+        if (timeElapsed < gig.durations[0]) {
+            gig.status = Status.cancelled;
+            _distributeGigRewards(_gigId, 1, 0);
+            emit GigCancelled(_gigId);
+        } else if (timeElapsed > gig.durations[2]) {
+            gig.status = Status.expired;
+            _distributeGigRewards(_gigId, 1, 0);
+            emit GigExpired(_gigId);
+        } else {
+            revert("invalid timestamp");
+        }
+    }
+
+    function lockGig(uint256 _gigId)
+        external
+        payable
+        override
+        nonReentrant
+        onlyParty
+    {
+        Gig storage gig = gigs[_gigId];
+        require(gig.resolver != address(0), "invalid resolver");
+        if (gig.status == Status.active) {
+            gig.status = Status.countdown;
+            gig.countdownTimestamp = block.timestamp;
+            emit GigLockCountdownStarted(_gigId);
+        } else if (gig.status == Status.countdown) {
+            uint256 timeElapsed = block.timestamp - gig.countdownTimestamp;
+            require(timeElapsed >= gig.durations[0], "still counting");
+            require(msg.value == gig.fixedResolverFee, "invalid value");
+            if (gig.fixedResolverFee > 0) {
+                payable(gig.resolver).transfer(gig.fixedResolverFee);
+            }
+            gig.status = Status.locked;
+            emit GigLockedForDispute(_gigId);
+        } else {
+            revert("invalid gig");
+        }
+    }
+
+    function completeGig(bytes calldata _data, bytes calldata _signatures)
+        external
+        override
+        nonReentrant
+        verified(_data, _signatures)
+    {
+        (
+            address _collab,
+            uint256 _gigId,
+            uint8 _giverShare,
+            uint8 _doerShare
+        ) = abi.decode(_data, (address, uint256, uint8, uint8));
+        require(_collab == address(this), "invalid data");
+        Gig storage gig = gigs[_gigId];
+        require(
+            gig.status == Status.active || gig.status == Status.countdown,
+            "invalid gig"
+        );
+        gig.status = Status.done;
+        _distributeGigRewards(_gigId, _giverShare, _doerShare);
+        emit GigDone(_gigId, _giverShare, _doerShare);
+    }
+
+    function _resolveGigRewards(
+        uint256 _gigId,
+        uint8 _giverShare,
+        uint8 _doerShare
+    ) internal {
+        Gig storage gig = gigs[_gigId];
+        require(gig.status == Status.locked, "invalid gig");
+        uint8 denom = _giverShare + _doerShare;
+        uint8 feeDenom = gig.resolverFeeRatio[0] + gig.resolverFeeRatio[1];
+        require(denom != 0 && feeDenom != 0, "invalid distribution");
+
+        for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
+            uint256 resolverReward = (gig.amounts[i] * gig.resolverFeeRatio[0]) /
+                feeDenom;
+            uint256 partyReward = gig.amounts[i] - resolverReward;
+            uint256 giverReward = (partyReward * _giverShare) / denom;
+            uint256 doerReward = partyReward - giverReward;
+            IERC20 token = IERC20(gig.tokens[i]);
+            if (resolverReward > 0) {
+                token.safeTransferFrom(
+                    address(this),
+                    gig.resolver,
+                    resolverReward
+                );
+            }
+            if (giverReward > 0) {
+                token.safeTransferFrom(address(this), giver, giverReward);
+            }
+            if (doerReward > 0) {
+                token.safeTransferFrom(address(this), doer, doerReward);
+            }
+        }
+        gig.status = Status.resolved;
+    }
+
+    function resolveGig(
+        uint256 _gigId,
+        uint8 _giverShare,
+        uint8 _doerShare
+    ) external override nonReentrant onlyResolver(_gigId) {
+        _resolveGigRewards(_gigId, _giverShare, _doerShare);
+        emit GigResolved(_gigId, _giverShare, _doerShare);
+    }
+
+    function updateGigHash(bytes calldata _data, bytes calldata _signatures)
+        external
+        override
+        nonReentrant
+        verified(_data, _signatures)
+    {
+        (address _collab, uint256 _gigId, bytes memory _hash) = abi.decode(
+            _data,
+            (address, uint256, bytes)
+        );
+        require(_collab == address(this), "invalid data");
+        Gig storage gig = gigs[_gigId];
+        require(
+            gig.status == Status.active || gig.status == Status.init,
+            "invalid gig"
+        );
+        emit GigHashUpdated(_gigId, _hash);
+    }
+
+    function updateGigResolver(bytes calldata _data, bytes calldata _signatures)
+        external
+        override
+        nonReentrant
+        verified(_data, _signatures)
+    {
+        (address _collab, uint256 _gigId, address _resolver) = abi.decode(
+            _data,
+            (address, uint256, address)
+        );
+        require(
+            _collab == address(this) && _resolver != address(0),
+            "invalid data"
+        );
+        Gig storage gig = gigs[_gigId];
+        require(
+            gig.status == Status.active || gig.status == Status.init,
+            "invalid gig"
+        );
+        gig.resolver = _resolver;
+        // TODO: init resolver fees
+        emit GigResolverUpdated(_gigId);
     }
 }
