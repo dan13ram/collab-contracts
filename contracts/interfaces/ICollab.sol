@@ -11,8 +11,7 @@ interface ICollab {
     function startNewGig(bytes calldata _data, bytes calldata _signatures)
         external;
 
-    function startGig(bytes calldata _data, bytes calldata _signatures)
-        external;
+    function startGig(uint256 _gigId) external;
 
     function cancelGig(uint256 _gigId) external;
 

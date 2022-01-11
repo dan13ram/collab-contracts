@@ -203,18 +203,12 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         emit GigActive(_gigId);
     }
 
-    function startGig(bytes calldata _data, bytes calldata _signatures)
+    function startGig(uint256 _gigId)
         external
         override
         nonReentrant
-        verified(_data, _signatures)
+        onlyFunder
     {
-        (address _collab, uint256 _gigId) = abi.decode(
-            _data,
-            (address, uint256)
-        );
-        require(_collab == address(this), "invalid data");
-
         _startGig(_gigId);
     }
 
