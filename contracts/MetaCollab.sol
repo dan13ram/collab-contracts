@@ -34,7 +34,6 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         uint256[] amounts;
         uint256 startTimestamp;
         uint256 countdownTimestamp;
-        uint256 endTimestamp;
         uint256[3] durations; // [cancellationDuration, countdownDuration, expirationDuration]
         address resolver;
         uint256 fixedResolverFee;
