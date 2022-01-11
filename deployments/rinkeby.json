@@ -1,0 +1,10 @@
+{
+  "network": "rinkeby",
+  "factory": "0x1A8acAD062E45B8932E2Dc5B79031ee0a518d9CF",
+  "implemention": "0x8EEF31db96Aa187c40294E9b3cAD7ECc3A0256bF",
+  "libraries": {
+    "SignatureDecoder": "0xeB74Af76CCC4dD55dD691C0A240016540A3b6043"
+  },
+  "txHash": "0xa8847f2db0e3e5f3723ed7d956a664fd5e3a5fdf4fafff8823d70a5cf68d4a5e",
+  "blockNumber": "9973019"
+}

@@ -1,6 +1,8 @@
 {
   "name": "meta-collab-contracts",
   "scripts": {
+    "deploy-rinkeby": "hardhat run scripts/deploy.ts --network rinkeby",
+    "lint": "eslint --ignore-path .gitignore \"./**/*.{ts,js}\"",
     "solhint": "solhint -f table \"contracts/{*,**/*}.sol\"",
     "format": "prettier --ignore-path .gitignore --write \"{*,**/*}.{ts,js,json,md,sol}\""
   },

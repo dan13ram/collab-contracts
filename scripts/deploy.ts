@@ -1,30 +1,103 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
-import { ethers } from "hardhat";
+import { ethers, run, network } from 'hardhat';
+import fs from 'fs';
+
+const networkName: { [chain: number]: string } = {
+  1: 'Ethereum Mainnet',
+  4: 'Rinkeby Testnet',
+};
+
+const networkCurrency: { [chain: number]: string } = {
+  1: 'ETH',
+  4: 'ETH',
+};
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
+  const [deployer] = await ethers.getSigners();
+  const address = await deployer.getAddress();
+  if (!deployer.provider) {
+    console.error('Provider not found for network');
+    return;
+  }
+  const { chainId } = await deployer.provider.getNetwork();
+  console.log('Deploying MetaCollabFactory on network:', networkName[chainId]);
+  console.log('Account address:', address);
+  console.log(
+    'Account balance:',
+    ethers.utils.formatEther(await deployer.provider.getBalance(address)),
+    networkCurrency[chainId],
+  );
 
-  // We get the contract to deploy
-  const Greeter = await ethers.getContractFactory("Greeter");
-  const greeter = await Greeter.deploy("Hello, Hardhat!");
+  const SignatureDecoderFactory = await ethers.getContractFactory(
+    'SignatureDecoder',
+  );
+  const signatureDecoderLibrary = await SignatureDecoderFactory.deploy();
+  await signatureDecoderLibrary.deployed();
+  console.log('SignatureDecoder Address:', signatureDecoderLibrary.address);
 
-  await greeter.deployed();
+  const MetaCollab = await ethers.getContractFactory('MetaCollab', {
+    libraries: { SignatureDecoder: signatureDecoderLibrary.address },
+  });
+  const metaCollab = await MetaCollab.deploy();
+  await metaCollab.deployed();
+  console.log('Implementation Address:', metaCollab.address);
 
-  console.log("Greeter deployed to:", greeter.address);
+  const MetaCollabFactory = await ethers.getContractFactory(
+    'MetaCollabFactory',
+  );
+  const metaCollabFactory = await MetaCollabFactory.deploy(metaCollab.address);
+  await metaCollabFactory.deployed();
+  console.log('Factory Address:', metaCollabFactory.address);
+
+  const txHash = metaCollabFactory.deployTransaction.hash;
+  const receipt = await deployer.provider.getTransactionReceipt(txHash);
+  console.log('Block Number:', receipt.blockNumber);
+
+  const deploymentInfo = {
+    network: network.name,
+    factory: metaCollabFactory.address,
+    implemention: metaCollab.address,
+    libraries: {
+      SignatureDecoder: signatureDecoderLibrary.address,
+    },
+    txHash,
+    blockNumber: receipt.blockNumber.toString(),
+  };
+
+  fs.writeFileSync(
+    `deployments/${network.name}.json`,
+    JSON.stringify(deploymentInfo, undefined, 2),
+  );
+
+  try {
+    console.log('Verifying Contracts...');
+    metaCollabFactory.deployTransaction.wait(5);
+    const TASK_VERIFY = 'verify:verify';
+
+    await run(TASK_VERIFY, {
+      address: signatureDecoderLibrary.address,
+      constructorArguments: [],
+    });
+    console.log('Verified Library');
+
+    await run(TASK_VERIFY, {
+      address: metaCollab.address,
+      constructorArguments: [],
+    });
+    console.log('Verified Implementation');
+
+    await run(TASK_VERIFY, {
+      address: metaCollabFactory.address,
+      constructorArguments: [metaCollab.address],
+    });
+    console.log('Verified Factory');
+  } catch (err) {
+    console.error('Error verifying contracts:', err);
+  }
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error(error);
+    process.exit(1);
+  });

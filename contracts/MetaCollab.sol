@@ -55,6 +55,9 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     mapping(uint256 => Gig) public gigs;
     uint256 public gigCount;
 
+    // solhint-disable-next-line no-empty-blocks
+    constructor() initializer {}
+
     function init(address _giver, address _doer) external override initializer {
         require(_giver != address(0), "invalid giver");
         require(_doer != address(0), "invalid doer");
@@ -229,7 +232,6 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         }
     }
 
-
     function cancelGig(uint256 _gigId)
         external
         override
@@ -315,8 +317,8 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         require(denom != 0 && feeDenom != 0, "invalid distribution");
 
         for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
-            uint256 resolverReward = (gig.amounts[i] * gig.resolverFeeRatio[0]) /
-                feeDenom;
+            uint256 resolverReward = (gig.amounts[i] *
+                gig.resolverFeeRatio[0]) / feeDenom;
             uint256 partyReward = gig.amounts[i] - resolverReward;
             uint256 giverReward = (partyReward * _giverShare) / denom;
             uint256 doerReward = partyReward - giverReward;
