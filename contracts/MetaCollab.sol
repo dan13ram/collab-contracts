@@ -53,7 +53,8 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     event GigResolved(
         uint256 indexed gigId,
         uint8 funderShare,
-        uint8 doerShare
+        uint8 doerShare,
+        bytes hash
     );
 
     mapping(uint256 => Gig) public gigs;
@@ -345,10 +346,11 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     function resolveGig(
         uint256 _gigId,
         uint8 _funderShare,
-        uint8 _doerShare
+        uint8 _doerShare,
+        bytes calldata _hash
     ) external override nonReentrant onlyResolver(_gigId) {
         _resolveGigRewards(_gigId, _funderShare, _doerShare);
-        emit GigResolved(_gigId, _funderShare, _doerShare);
+        emit GigResolved(_gigId, _funderShare, _doerShare, _hash);
     }
 
     function updateGigHash(bytes calldata _data, bytes calldata _signatures)

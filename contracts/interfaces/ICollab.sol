@@ -23,7 +23,8 @@ interface ICollab {
     function resolveGig(
         uint256 _gigId,
         uint8 _funderShare,
-        uint8 _doerShare
+        uint8 _doerShare,
+        bytes calldata hash
     ) external;
 
     function updateGigHash(bytes calldata _data, bytes calldata _signatures)
