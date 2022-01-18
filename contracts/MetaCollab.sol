@@ -12,7 +12,7 @@ import "./interfaces/ICollab.sol";
 import "./libraries/SignatureDecoder.sol";
 
 interface IFeeStore {
-    function flatFees(address resolver) external returns (uint256);
+    function flatFees(address _resolver) external returns (uint256);
 }
 
 contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
@@ -29,7 +29,6 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         locked,
         resolved,
         cancelled,
-        expired,
         done
     }
 
@@ -42,7 +41,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         uint256[3] durations; // [cancellationDuration, countdownDuration, expirationDuration]
         address resolver;
         uint256 flatResolverFee;
-        uint8[2] resolverFeeRatio;
+        uint8[2] feeRewardRatio;
         address[2] thirdParties;
     }
 
@@ -53,18 +52,16 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     event GigLockCountdownStarted(uint256 indexed gigId);
     event GigLockedForDispute(uint256 indexed gigId);
     event GigCancelled(uint256 indexed gigId);
-    event GigExpired(uint256 indexed gigId);
     event GigThirdPartyUpdated(uint256 indexed gigId);
-    event GigDone(uint256 indexed gigId, uint8 funderShare, uint8 doerShare);
+    event GigDone(uint256 indexed gigId, uint8[2] rewardRatie);
     event GigResolved(
         uint256 indexed gigId,
-        uint8 funderShare,
-        uint8 doerShare,
-        uint8[3] thirdPartyRatio,
+        uint8[3] feeRatio,
+        uint8[2] rewardRatio,
         bytes hash
     );
 
-    mapping(uint256 => Gig) public gigs;
+    mapping(uint256 => Gig) private gigs;
     uint256 public gigCount;
 
     // solhint-disable-next-line no-empty-blocks
@@ -77,6 +74,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     ) external override initializer {
         require(_funder != address(0), "invalid funder");
         require(_doer != address(0), "invalid doer");
+        require(_feeStore != address(0), "invalid feeStore");
 
         funder = _funder;
         doer = _doer;
@@ -110,7 +108,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         uint256[] memory _amounts,
         uint256[3] memory _durations,
         address _resolver,
-        uint8[2] memory _resolverFeeRatio
+        uint8[2] memory _feeRewardRatio
     ) internal {
         Gig storage gig = gigs[gigCount];
         gig.status = Status.init;
@@ -119,11 +117,11 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         gig.startTimestamp = block.timestamp;
         require(_durations[2] > 0, "invalid expiration duration");
         gig.durations = _durations;
+        gig.feeRewardRatio = _feeRewardRatio;
 
         if (_resolver != address(0)) {
             gig.resolver = _resolver;
             gig.flatResolverFee = feeStore.flatFees(_resolver);
-            gig.resolverFeeRatio = _resolverFeeRatio;
         }
 
         emit GigInit(gigCount, _hash);
@@ -142,7 +140,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             uint256[] memory _amounts,
             uint256[3] memory _durations,
             address _resolver,
-            uint8[2] memory _resolverFeeRatio,
+            uint8[2] memory _feeRewardRatio,
             address _collab,
             uint256 _gigCount
         ) = abi.decode(
@@ -161,7 +159,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         require(
             _gigCount == gigCount &&
                 _collab == address(this) &&
-                _resolverFeeRatio[0] + _resolverFeeRatio[1] > 0 &&
+                _feeRewardRatio[0] + _feeRewardRatio[1] > 0 &&
                 _tokens.length == _amounts.length,
             "invalid data"
         );
@@ -172,7 +170,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             _amounts,
             _durations,
             _resolver,
-            _resolverFeeRatio
+            _feeRewardRatio
         );
     }
 
@@ -188,7 +186,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             uint256[] memory _amounts,
             uint256[3] memory _durations,
             address _resolver,
-            uint8[2] memory _resolverFeeRatio,
+            uint8[2] memory _feeRewardRatio,
             address _collab,
             uint256 _gigCount
         ) = abi.decode(
@@ -207,7 +205,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         require(
             _gigCount == gigCount &&
                 _collab == address(this) &&
-                _resolverFeeRatio[0] + _resolverFeeRatio[1] > 0 &&
+                _feeRewardRatio[0] + _feeRewardRatio[1] > 0 &&
                 _tokens.length == _amounts.length,
             "invalid data"
         );
@@ -217,7 +215,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             _amounts,
             _durations,
             _resolver,
-            _resolverFeeRatio
+            _feeRewardRatio
         );
         _startGig(_gigCount);
     }
@@ -240,20 +238,20 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         nonReentrant
         onlyFunder
     {
+        require(_gigId < gigCount, "invalid gig");
         _startGig(_gigId);
     }
 
-    function _distributeGigRewards(
-        uint256 _gigId,
-        uint8 _funderShare,
-        uint8 _doerShare
-    ) internal {
-        uint8 denom = _funderShare + _doerShare;
-        require(denom != 0, "invalid distribution");
+    function _distributeGigRewards(uint256 _gigId, uint8[2] memory _rewardRatio)
+        internal
+    {
+        uint8 rewardDenom = _rewardRatio[0] + _rewardRatio[1];
+        require(rewardDenom != 0, "invalid ratio");
         Gig storage gig = gigs[_gigId];
 
         for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
-            uint256 funderReward = (gig.amounts[i] * _funderShare) / denom;
+            uint256 funderReward = (gig.amounts[i] * _rewardRatio[0]) /
+                rewardDenom;
             uint256 doerReward = gig.amounts[i] - funderReward;
             IERC20 token = IERC20(gig.tokens[i]);
             if (funderReward > 0) {
@@ -272,20 +270,27 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         onlyFunder
     {
         Gig storage gig = gigs[_gigId];
-        require(gig.status == Status.active, "invalid gig");
-        uint256 timeElapsed = block.timestamp - gig.startTimestamp;
+        require(
+            _gigId < gigCount &&
+                (gig.status == Status.active || gig.status == Status.init),
+            "invalid gig"
+        );
 
-        if (timeElapsed < gig.durations[0]) {
+        if (gig.status == Status.init) {
             gig.status = Status.cancelled;
-            _distributeGigRewards(_gigId, 1, 0);
             emit GigCancelled(_gigId);
-        } else if (timeElapsed > gig.durations[2]) {
-            gig.status = Status.expired;
-            _distributeGigRewards(_gigId, 1, 0);
-            emit GigExpired(_gigId);
-        } else {
-            revert("invalid timestamp");
+            return;
         }
+        uint256 timeElapsed = block.timestamp - gig.startTimestamp;
+        require(
+            timeElapsed < gig.durations[0] || timeElapsed > gig.durations[2],
+            "invalid timestamp"
+        );
+
+        gig.status = Status.cancelled;
+        emit GigCancelled(_gigId);
+        uint8[2] memory rewardRatio = [1, 0];
+        _distributeGigRewards(_gigId, rewardRatio);
     }
 
     function lockGig(uint256 _gigId)
@@ -321,12 +326,8 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         nonReentrant
         verified(_data, _signatures)
     {
-        (
-            address _collab,
-            uint256 _gigId,
-            uint8 _funderShare,
-            uint8 _doerShare
-        ) = abi.decode(_data, (address, uint256, uint8, uint8));
+        (address _collab, uint256 _gigId, uint8[2] memory _rewardRatio) = abi
+            .decode(_data, (address, uint256, uint8[2]));
         require(_collab == address(this), "invalid data");
         Gig storage gig = gigs[_gigId];
         require(
@@ -334,40 +335,38 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             "invalid gig"
         );
         gig.status = Status.done;
-        _distributeGigRewards(_gigId, _funderShare, _doerShare);
-        emit GigDone(_gigId, _funderShare, _doerShare);
+        _distributeGigRewards(_gigId, _rewardRatio);
+        emit GigDone(_gigId, _rewardRatio);
     }
 
     function _resolveGigRewards(
         uint256 _gigId,
-        uint8 _funderShare,
-        uint8 _doerShare,
-        uint8[3] calldata _thirdPartyRatio
+        uint8[3] calldata _feeRatio, // resolver : thirdPartyFunder : thirdPartyDoer
+        uint8[2] calldata _rewardRatio // funder : doer
     ) internal {
         Gig storage gig = gigs[_gigId];
         require(gig.status == Status.locked, "invalid gig");
-        uint8 denom = _funderShare + _doerShare;
-        uint8 feeDenom = gig.resolverFeeRatio[0] + gig.resolverFeeRatio[1];
-        require(denom != 0 && feeDenom != 0, "invalid distribution");
+        uint8 feeRewardDenom = gig.feeRewardRatio[0] + gig.feeRewardRatio[1];
+        uint8 feeDenom = _feeRatio[0] + _feeRatio[1] + _feeRatio[2];
+        uint8 rewardDenom = _rewardRatio[0] + _rewardRatio[1];
+        require(
+            feeRewardDenom != 0 && feeDenom != 0 && rewardDenom != 0,
+            "invalid ratio"
+        );
 
         for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
-            uint256 resolverReward = (gig.amounts[i] *
-                gig.resolverFeeRatio[0]) / feeDenom;
-            uint256 partyReward = gig.amounts[i] - resolverReward;
-            uint256 funderReward = (partyReward * _funderShare) / denom;
-            uint256 doerReward = partyReward - funderReward;
+            uint256 totalFee = (gig.amounts[i] * gig.feeRewardRatio[0]) /
+                feeRewardDenom;
+            uint256 totalReward = gig.amounts[i] - totalFee;
+            uint256 funderReward = (totalReward * _rewardRatio[0]) /
+                rewardDenom;
+            uint256 doerReward = totalReward - funderReward;
             IERC20 token = IERC20(gig.tokens[i]);
-            if (resolverReward > 0) {
-                uint8 thirdPartyDenom = _thirdPartyRatio[0] +
-                    _thirdPartyRatio[1] +
-                    _thirdPartyRatio[2];
-                require(thirdPartyDenom != 0, "invalid distribution");
-
-                uint256 resolverFee = (resolverReward * _thirdPartyRatio[0]) /
-                    thirdPartyDenom;
-                uint256 funderThirdPartyFee = (resolverReward *
-                    _thirdPartyRatio[1]) / thirdPartyDenom;
-                uint256 doerThirdPartyFee = resolverReward -
+            if (totalFee > 0) {
+                uint256 resolverFee = (totalFee * _feeRatio[0]) / feeDenom;
+                uint256 funderThirdPartyFee = (totalFee * _feeRatio[1]) /
+                    feeDenom;
+                uint256 doerThirdPartyFee = totalFee -
                     (resolverFee + funderThirdPartyFee);
 
                 if (resolverFee > 0) {
@@ -383,7 +382,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
                         gig.thirdParties[0] == address(0)
                             ? gig.resolver
                             : gig.thirdParties[0],
-                        resolverFee
+                        funderThirdPartyFee
                     );
                 }
                 if (doerThirdPartyFee > 0) {
@@ -392,7 +391,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
                         gig.thirdParties[1] == address(0)
                             ? gig.resolver
                             : gig.thirdParties[1],
-                        resolverFee
+                        doerThirdPartyFee
                     );
                 }
             }
@@ -408,19 +407,12 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
 
     function resolveGig(
         uint256 _gigId,
-        uint8 _funderShare,
-        uint8 _doerShare,
-        uint8[3] calldata _thirdPartyRatio,
+        uint8[3] calldata _feeRatio, // resolver : thirdPartyFunder : thirdPartyDoer
+        uint8[2] calldata _rewardRatio, // funder : doer
         bytes calldata _hash
     ) external override nonReentrant onlyResolver(_gigId) {
-        _resolveGigRewards(_gigId, _funderShare, _doerShare, _thirdPartyRatio);
-        emit GigResolved(
-            _gigId,
-            _funderShare,
-            _doerShare,
-            _thirdPartyRatio,
-            _hash
-        );
+        _resolveGigRewards(_gigId, _feeRatio, _rewardRatio);
+        emit GigResolved(_gigId, _feeRatio, _rewardRatio, _hash);
     }
 
     function updateGigHash(bytes calldata _data, bytes calldata _signatures)
@@ -452,12 +444,12 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             address _collab,
             uint256 _gigId,
             address _resolver,
-            uint8[2] memory _resolverFeeRatio
+            uint8[2] memory _feeRewardRatio
         ) = abi.decode(_data, (address, uint256, address, uint8[2]));
         require(
             _collab == address(this) &&
                 _resolver != address(0) &&
-                _resolverFeeRatio[0] + _resolverFeeRatio[1] > 0,
+                _feeRewardRatio[0] + _feeRewardRatio[1] > 0,
             "invalid data"
         );
         Gig storage gig = gigs[_gigId];
@@ -467,11 +459,11 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         );
         gig.resolver = _resolver;
         gig.flatResolverFee = feeStore.flatFees(_resolver);
-        gig.resolverFeeRatio = _resolverFeeRatio;
+        gig.feeRewardRatio = _feeRewardRatio;
         emit GigResolverUpdated(_gigId);
     }
 
-    function updateThirdParty(uint256 _gigId, address _thirdParty)
+    function updateGigThirdParty(uint256 _gigId, address _thirdParty)
         external
         override
         onlyParty
@@ -490,5 +482,36 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
             gig.thirdParties[1] = _thirdParty;
         }
         emit GigThirdPartyUpdated(_gigId);
+    }
+
+    function getGig(uint256 _gigId)
+        external
+        view
+        returns (
+            Status,
+            address[] memory,
+            uint256[] memory,
+            uint256,
+            uint256,
+            uint256[3] memory,
+            address,
+            uint256,
+            uint8[2] memory,
+            address[2] memory
+        )
+    {
+        Gig memory gig = gigs[_gigId];
+        return (
+            gig.status,
+            gig.tokens,
+            gig.amounts,
+            gig.startTimestamp,
+            gig.countdownTimestamp,
+            gig.durations,
+            gig.resolver,
+            gig.flatResolverFee,
+            gig.feeRewardRatio,
+            gig.thirdParties
+        );
     }
 }

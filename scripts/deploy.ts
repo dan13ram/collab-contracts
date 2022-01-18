@@ -1,5 +1,5 @@
-import { ethers, run, network } from 'hardhat';
 import fs from 'fs';
+import { ethers, network, run } from 'hardhat';
 
 const networkName: { [chain: number]: string } = {
   1: 'Ethereum Mainnet',

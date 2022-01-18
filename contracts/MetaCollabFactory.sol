@@ -15,7 +15,7 @@ contract MetaCollabFactory is ICollabFactory {
     event UpdateFlatFee(
         address indexed resolver,
         uint256 indexed flatFee,
-        bytes32 details
+        bytes details
     );
 
     address public immutable implementation;
@@ -78,7 +78,7 @@ contract MetaCollabFactory is ICollabFactory {
         return _collabs[_index];
     }
 
-    function updateFlatFee(uint256 _flatFee, bytes32 _hash) external {
+    function updateFlatFee(uint256 _flatFee, bytes calldata _hash) external {
         flatFees[msg.sender] = _flatFee;
         emit UpdateFlatFee(msg.sender, _flatFee, _hash);
     }

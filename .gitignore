@@ -14,13 +14,13 @@ coverage
 lib-cov
 coverage.json
 
-# typechain
+# typescript
 types
+dist
 
 # hardhat
 cache
 artifacts
-
 
 # vim
 *.sw[a-z]
