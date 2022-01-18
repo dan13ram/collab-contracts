@@ -2,9 +2,11 @@ import { AbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { Libraries } from '@nomiclabs/hardhat-ethers/types';
-import { ethers } from 'hardhat';
+import { ethers, waffle } from 'hardhat';
 
 import { SignatureDecoder } from '../../types/SignatureDecoder';
+
+const { provider } = waffle;
 
 export const abiCoder = new AbiCoder();
 
@@ -15,6 +17,12 @@ export const erc20ABI = (): any[] =>
 export const currentTimestamp = async (): Promise<number> => {
   const block = await ethers.provider.getBlock('latest');
   return +block.timestamp;
+};
+
+export const increaseTimestamp = async (time: number) => {
+  await provider.send('evm_setNextBlockTimestamp', [
+    (await currentTimestamp()) + time,
+  ]);
 };
 
 /**

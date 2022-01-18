@@ -15,6 +15,7 @@ import {
 } from './utils/collabHelpers';
 import {
   currentTimestamp,
+  increaseTimestamp,
   deploy,
   deploySignatureDecoder,
   erc20ABI,
@@ -57,7 +58,7 @@ describe('MetaCollab', () => {
 
     await collabFactory.deployed();
 
-    await collabFactory.connect(signers[2]).updateFlatFee(1000, EMPTY_BYTES32);
+    await collabFactory.connect(signers[2]).updateFlatFee(10, EMPTY_BYTES32);
 
     const tx = await collabFactory.create(
       signers[0].address,
@@ -85,7 +86,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10, 20],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -110,7 +111,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 0],
           collab.address,
@@ -135,7 +136,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           ZERO_ADDRESS,
@@ -160,7 +161,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -185,7 +186,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -210,7 +211,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -237,9 +238,9 @@ describe('MetaCollab', () => {
       expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
       expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
       expect(gig.durations).to.deep.equal([
-        BigNumber.from(1000),
-        BigNumber.from(1000),
-        BigNumber.from(10000),
+        BigNumber.from(10),
+        BigNumber.from(10),
+        BigNumber.from(20),
       ]);
       expect(gig.resolver).to.equal(ZERO_ADDRESS);
       expect(gig.flatResolverFee).to.equal(BigNumber.from(0));
@@ -254,7 +255,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address, secondToken.address],
           [10, 20],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -287,9 +288,9 @@ describe('MetaCollab', () => {
       expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
       expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
       expect(gig.durations).to.deep.equal([
-        BigNumber.from(1000),
-        BigNumber.from(1000),
-        BigNumber.from(10000),
+        BigNumber.from(10),
+        BigNumber.from(10),
+        BigNumber.from(20),
       ]);
       expect(gig.resolver).to.equal(ZERO_ADDRESS);
       expect(gig.flatResolverFee).to.equal(BigNumber.from(0));
@@ -304,7 +305,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           signers[2].address,
           [0, 1],
           collab.address,
@@ -331,12 +332,12 @@ describe('MetaCollab', () => {
       expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
       expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
       expect(gig.durations).to.deep.equal([
-        BigNumber.from(1000),
-        BigNumber.from(1000),
-        BigNumber.from(10000),
+        BigNumber.from(10),
+        BigNumber.from(10),
+        BigNumber.from(20),
       ]);
       expect(gig.resolver).to.equal(signers[2].address);
-      expect(gig.flatResolverFee).to.equal(BigNumber.from(1000));
+      expect(gig.flatResolverFee).to.equal(BigNumber.from(10));
       expect(gig.feeRewardRatio).to.deep.equal([0, 1]);
       expect(gig.thirdParties).to.deep.equal([ZERO_ADDRESS, ZERO_ADDRESS]);
     });
@@ -350,7 +351,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10, 20],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -375,7 +376,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 0],
           collab.address,
@@ -400,7 +401,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           ZERO_ADDRESS,
@@ -425,7 +426,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -450,7 +451,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -475,7 +476,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -505,9 +506,9 @@ describe('MetaCollab', () => {
       expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
       expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
       expect(gig.durations).to.deep.equal([
-        BigNumber.from(1000),
-        BigNumber.from(1000),
-        BigNumber.from(10000),
+        BigNumber.from(10),
+        BigNumber.from(10),
+        BigNumber.from(20),
       ]);
       expect(gig.resolver).to.equal(ZERO_ADDRESS);
       expect(gig.flatResolverFee).to.equal(BigNumber.from(0));
@@ -522,7 +523,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address, secondToken.address],
           [10, 20],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -561,9 +562,9 @@ describe('MetaCollab', () => {
       expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
       expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
       expect(gig.durations).to.deep.equal([
-        BigNumber.from(1000),
-        BigNumber.from(1000),
-        BigNumber.from(10000),
+        BigNumber.from(10),
+        BigNumber.from(10),
+        BigNumber.from(20),
       ]);
       expect(gig.resolver).to.equal(ZERO_ADDRESS);
       expect(gig.flatResolverFee).to.equal(BigNumber.from(0));
@@ -578,7 +579,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           signers[2].address,
           [0, 1],
           collab.address,
@@ -609,12 +610,12 @@ describe('MetaCollab', () => {
       expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
       expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
       expect(gig.durations).to.deep.equal([
-        BigNumber.from(1000),
-        BigNumber.from(1000),
-        BigNumber.from(10000),
+        BigNumber.from(10),
+        BigNumber.from(10),
+        BigNumber.from(20),
       ]);
       expect(gig.resolver).to.equal(signers[2].address);
-      expect(gig.flatResolverFee).to.equal(BigNumber.from(1000));
+      expect(gig.flatResolverFee).to.equal(BigNumber.from(10));
       expect(gig.feeRewardRatio).to.deep.equal([0, 1]);
       expect(gig.thirdParties).to.deep.equal([ZERO_ADDRESS, ZERO_ADDRESS]);
     });
@@ -638,7 +639,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -668,7 +669,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address],
           [10],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -705,7 +706,7 @@ describe('MetaCollab', () => {
           EMPTY_BYTES32,
           [firstToken.address, secondToken.address],
           [10, 20],
-          [1000, 1000, 10000],
+          [10, 10, 20],
           ZERO_ADDRESS,
           [0, 1],
           collab.address,
@@ -737,6 +738,167 @@ describe('MetaCollab', () => {
       const gig: Gig = await getGig(collab, 0);
 
       expect(gig.status).to.equal(GigStatus.active);
+    });
+  });
+
+  describe('cancelGig', () => {
+    it('Should revert cancel if not funder', async () => {
+      const tx = collab.connect(signers[1]).cancelGig(0);
+      await expect(tx).to.be.revertedWith('only funder');
+    });
+
+    it('Should revert cancel if gig does not exist', async () => {
+      const tx = collab.cancelGig(0);
+      await expect(tx).to.be.revertedWith('invalid gig');
+    });
+
+    it('Should cancel gig if not started', async () => {
+      const data = {
+        types: TYPES.startNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [firstToken.address],
+          [10],
+          [10, 10, 20],
+          ZERO_ADDRESS,
+          [0, 1],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      let tx = await collab.createNewGig(encodedData, signatures);
+
+      await tx.wait();
+
+      expect(await collab.gigCount()).to.equal(1);
+
+      tx = await collab.cancelGig(0);
+
+      await expect(tx).to.emit(collab, 'GigCancelled').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+
+      expect(gig.status).to.equal(GigStatus.cancelled);
+    });
+
+    it('Should revert cancel gig if after cancellation and before expiration', async () => {
+      const data = {
+        types: TYPES.startNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [firstToken.address],
+          [10],
+          [10, 10, 20],
+          ZERO_ADDRESS,
+          [0, 1],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      await firstToken.mock.transferFrom
+        .withArgs(signers[0].address, collab.address, 10)
+        .returns(true);
+      let tx = await collab.startNewGig(encodedData, signatures);
+
+      await tx.wait();
+
+      expect(await collab.gigCount()).to.equal(1);
+
+      await increaseTimestamp(11);
+
+      await expect(collab.cancelGig(0)).to.be.revertedWith('invalid timestamp');
+    });
+
+    it('Should cancel gig if within cancellation duration', async () => {
+      const data = {
+        types: TYPES.startNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [firstToken.address],
+          [10],
+          [10, 10, 20],
+          ZERO_ADDRESS,
+          [0, 1],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      await firstToken.mock.transferFrom
+        .withArgs(signers[0].address, collab.address, 10)
+        .returns(true);
+      let tx = await collab.startNewGig(encodedData, signatures);
+
+      await tx.wait();
+
+      expect(await collab.gigCount()).to.equal(1);
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[0].address, 10)
+        .returns(true);
+      tx = await collab.cancelGig(0);
+
+      await expect(tx).to.emit(collab, 'GigCancelled').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+
+      expect(gig.status).to.equal(GigStatus.cancelled);
+    });
+
+    it('Should cancel gig if after expiration', async () => {
+      const data = {
+        types: TYPES.startNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [firstToken.address],
+          [10],
+          [10, 10, 20],
+          ZERO_ADDRESS,
+          [0, 1],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      await firstToken.mock.transferFrom
+        .withArgs(signers[0].address, collab.address, 10)
+        .returns(true);
+      let tx = await collab.startNewGig(encodedData, signatures);
+
+      await tx.wait();
+
+      expect(await collab.gigCount()).to.equal(1);
+
+      await increaseTimestamp(21);
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[0].address, 10)
+        .returns(true);
+      tx = await collab.cancelGig(0);
+
+      await expect(tx).to.emit(collab, 'GigCancelled').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+
+      expect(gig.status).to.equal(GigStatus.cancelled);
     });
   });
 });

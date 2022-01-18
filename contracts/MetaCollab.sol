@@ -271,7 +271,8 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     {
         Gig storage gig = gigs[_gigId];
         require(
-            gig.status == Status.active || gig.status == Status.init,
+            _gigId < gigCount &&
+                (gig.status == Status.active || gig.status == Status.init),
             "invalid gig"
         );
 
