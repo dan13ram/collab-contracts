@@ -75,216 +75,218 @@ describe('MetaCollab', () => {
     expect(await collab.feeStore()).to.equal(collabFactory.address);
   });
 
-  it('Should revert create gig if invalid tokens or amounts', async () => {
-    const data = {
-      types: TYPES.createNewGig,
-      values: [
-        EMPTY_BYTES32,
-        [mockToken.address],
-        [10, 20],
-        [1000, 1000, 10000],
-        ZERO_ADDRESS,
-        [0, 1],
-        collab.address,
-        0,
-      ],
-    };
-    const [encodedData, signatures] = await multisig(data, [
-      signers[0],
-      signers[1],
-    ]);
+  describe('createNewGig', () => {
+    it('Should revert create gig if invalid tokens or amounts', async () => {
+      const data = {
+        types: TYPES.createNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [mockToken.address],
+          [10, 20],
+          [1000, 1000, 10000],
+          ZERO_ADDRESS,
+          [0, 1],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
 
-    const tx = collab.createNewGig(encodedData, signatures);
+      const tx = collab.createNewGig(encodedData, signatures);
 
-    await expect(tx).to.be.revertedWith('invalid data');
-    expect(await collab.gigCount()).to.equal(0);
-  });
+      await expect(tx).to.be.revertedWith('invalid data');
+      expect(await collab.gigCount()).to.equal(0);
+    });
 
-  it('Should revert create gig if invalid fee ratio', async () => {
-    const data = {
-      types: TYPES.createNewGig,
-      values: [
-        EMPTY_BYTES32,
-        [mockToken.address],
-        [10],
-        [1000, 1000, 10000],
-        ZERO_ADDRESS,
-        [0, 0],
-        collab.address,
-        0,
-      ],
-    };
-    const [encodedData, signatures] = await multisig(data, [
-      signers[0],
-      signers[1],
-    ]);
+    it('Should revert create gig if invalid fee ratio', async () => {
+      const data = {
+        types: TYPES.createNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [mockToken.address],
+          [10],
+          [1000, 1000, 10000],
+          ZERO_ADDRESS,
+          [0, 0],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
 
-    const tx = collab.createNewGig(encodedData, signatures);
+      const tx = collab.createNewGig(encodedData, signatures);
 
-    await expect(tx).to.be.revertedWith('invalid data');
-    expect(await collab.gigCount()).to.equal(0);
-  });
+      await expect(tx).to.be.revertedWith('invalid data');
+      expect(await collab.gigCount()).to.equal(0);
+    });
 
-  it('Should revert create gig if invalid collab address', async () => {
-    const data = {
-      types: TYPES.createNewGig,
-      values: [
-        EMPTY_BYTES32,
-        [mockToken.address],
-        [10],
-        [1000, 1000, 10000],
-        ZERO_ADDRESS,
-        [0, 1],
-        ZERO_ADDRESS,
-        0,
-      ],
-    };
-    const [encodedData, signatures] = await multisig(data, [
-      signers[0],
-      signers[1],
-    ]);
+    it('Should revert create gig if invalid collab address', async () => {
+      const data = {
+        types: TYPES.createNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [mockToken.address],
+          [10],
+          [1000, 1000, 10000],
+          ZERO_ADDRESS,
+          [0, 1],
+          ZERO_ADDRESS,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
 
-    const tx = collab.createNewGig(encodedData, signatures);
+      const tx = collab.createNewGig(encodedData, signatures);
 
-    await expect(tx).to.be.revertedWith('invalid data');
-    expect(await collab.gigCount()).to.equal(0);
-  });
+      await expect(tx).to.be.revertedWith('invalid data');
+      expect(await collab.gigCount()).to.equal(0);
+    });
 
-  it('Should revert create gig if invalid collab count', async () => {
-    const data = {
-      types: TYPES.createNewGig,
-      values: [
-        EMPTY_BYTES32,
-        [mockToken.address],
-        [10],
-        [1000, 1000, 10000],
-        ZERO_ADDRESS,
-        [0, 1],
-        collab.address,
-        1,
-      ],
-    };
-    const [encodedData, signatures] = await multisig(data, [
-      signers[0],
-      signers[1],
-    ]);
+    it('Should revert create gig if invalid collab count', async () => {
+      const data = {
+        types: TYPES.createNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [mockToken.address],
+          [10],
+          [1000, 1000, 10000],
+          ZERO_ADDRESS,
+          [0, 1],
+          collab.address,
+          1,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
 
-    const tx = collab.createNewGig(encodedData, signatures);
+      const tx = collab.createNewGig(encodedData, signatures);
 
-    await expect(tx).to.be.revertedWith('invalid data');
-    expect(await collab.gigCount()).to.equal(0);
-  });
+      await expect(tx).to.be.revertedWith('invalid data');
+      expect(await collab.gigCount()).to.equal(0);
+    });
 
-  it('Should revert create gig if invalid signatures', async () => {
-    const data = {
-      types: TYPES.createNewGig,
-      values: [
-        EMPTY_BYTES32,
-        [mockToken.address],
-        [10],
-        [1000, 1000, 10000],
-        ZERO_ADDRESS,
-        [0, 1],
-        collab.address,
-        0,
-      ],
-    };
-    const [encodedData, signatures] = await multisig(data, [
-      signers[0],
-      signers[2],
-    ]);
+    it('Should revert create gig if invalid signatures', async () => {
+      const data = {
+        types: TYPES.createNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [mockToken.address],
+          [10],
+          [1000, 1000, 10000],
+          ZERO_ADDRESS,
+          [0, 1],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[2],
+      ]);
 
-    const tx = collab.createNewGig(encodedData, signatures);
+      const tx = collab.createNewGig(encodedData, signatures);
 
-    await expect(tx).to.be.revertedWith('invalid signatures');
-    expect(await collab.gigCount()).to.equal(0);
-  });
+      await expect(tx).to.be.revertedWith('invalid signatures');
+      expect(await collab.gigCount()).to.equal(0);
+    });
 
-  it('Should create a new gig', async () => {
-    const data = {
-      types: TYPES.createNewGig,
-      values: [
-        EMPTY_BYTES32,
-        [mockToken.address],
-        [10],
-        [1000, 1000, 10000],
-        ZERO_ADDRESS,
-        [0, 1],
-        collab.address,
-        0,
-      ],
-    };
-    const [encodedData, signatures] = await multisig(data, [
-      signers[0],
-      signers[1],
-    ]);
+    it('Should create a new gig', async () => {
+      const data = {
+        types: TYPES.createNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [mockToken.address],
+          [10],
+          [1000, 1000, 10000],
+          ZERO_ADDRESS,
+          [0, 1],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
 
-    const tx = await collab.createNewGig(encodedData, signatures);
+      const tx = await collab.createNewGig(encodedData, signatures);
 
-    await tx.wait();
+      await tx.wait();
 
-    await expect(tx).to.emit(collab, 'GigInit').withArgs(0, EMPTY_BYTES32);
-    expect(await collab.gigCount()).to.equal(1);
+      await expect(tx).to.emit(collab, 'GigInit').withArgs(0, EMPTY_BYTES32);
+      expect(await collab.gigCount()).to.equal(1);
 
-    const gig: Gig = await getGig(collab, 0);
+      const gig: Gig = await getGig(collab, 0);
 
-    expect(gig.status).to.equal(GigStatus.init);
-    expect(gig.tokens).to.deep.equal([mockToken.address]);
-    expect(gig.amounts).to.deep.equal([BigNumber.from(10)]);
-    expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
-    expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
-    expect(gig.durations).to.deep.equal([
-      BigNumber.from(1000),
-      BigNumber.from(1000),
-      BigNumber.from(10000),
-    ]);
-    expect(gig.resolver).to.equal(ZERO_ADDRESS);
-    expect(gig.flatResolverFee).to.equal(BigNumber.from(0));
-    expect(gig.feeRewardRatio).to.deep.equal([0, 1]);
-    expect(gig.thirdParties).to.deep.equal([ZERO_ADDRESS, ZERO_ADDRESS]);
-  });
+      expect(gig.status).to.equal(GigStatus.init);
+      expect(gig.tokens).to.deep.equal([mockToken.address]);
+      expect(gig.amounts).to.deep.equal([BigNumber.from(10)]);
+      expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
+      expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
+      expect(gig.durations).to.deep.equal([
+        BigNumber.from(1000),
+        BigNumber.from(1000),
+        BigNumber.from(10000),
+      ]);
+      expect(gig.resolver).to.equal(ZERO_ADDRESS);
+      expect(gig.flatResolverFee).to.equal(BigNumber.from(0));
+      expect(gig.feeRewardRatio).to.deep.equal([0, 1]);
+      expect(gig.thirdParties).to.deep.equal([ZERO_ADDRESS, ZERO_ADDRESS]);
+    });
 
-  it('Should create a new gig with resolver flat fee', async () => {
-    const data = {
-      types: TYPES.createNewGig,
-      values: [
-        EMPTY_BYTES32,
-        [mockToken.address],
-        [10],
-        [1000, 1000, 10000],
-        signers[2].address,
-        [0, 1],
-        collab.address,
-        0,
-      ],
-    };
-    const [encodedData, signatures] = await multisig(data, [
-      signers[0],
-      signers[1],
-    ]);
+    it('Should create a new gig with resolver flat fee', async () => {
+      const data = {
+        types: TYPES.createNewGig,
+        values: [
+          EMPTY_BYTES32,
+          [mockToken.address],
+          [10],
+          [1000, 1000, 10000],
+          signers[2].address,
+          [0, 1],
+          collab.address,
+          0,
+        ],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
 
-    const tx = await collab.createNewGig(encodedData, signatures);
+      const tx = await collab.createNewGig(encodedData, signatures);
 
-    await tx.wait();
+      await tx.wait();
 
-    await expect(tx).to.emit(collab, 'GigInit').withArgs(0, EMPTY_BYTES32);
-    expect(await collab.gigCount()).to.equal(1);
+      await expect(tx).to.emit(collab, 'GigInit').withArgs(0, EMPTY_BYTES32);
+      expect(await collab.gigCount()).to.equal(1);
 
-    const gig: Gig = await getGig(collab, 0);
+      const gig: Gig = await getGig(collab, 0);
 
-    expect(gig.status).to.equal(GigStatus.init);
-    expect(gig.tokens).to.deep.equal([mockToken.address]);
-    expect(gig.amounts).to.deep.equal([BigNumber.from(10)]);
-    expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
-    expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
-    expect(gig.durations).to.deep.equal([
-      BigNumber.from(1000),
-      BigNumber.from(1000),
-      BigNumber.from(10000),
-    ]);
-    expect(gig.resolver).to.equal(signers[2].address);
-    expect(gig.flatResolverFee).to.equal(BigNumber.from(1000));
-    expect(gig.feeRewardRatio).to.deep.equal([0, 1]);
-    expect(gig.thirdParties).to.deep.equal([ZERO_ADDRESS, ZERO_ADDRESS]);
+      expect(gig.status).to.equal(GigStatus.init);
+      expect(gig.tokens).to.deep.equal([mockToken.address]);
+      expect(gig.amounts).to.deep.equal([BigNumber.from(10)]);
+      expect(gig.startTimestamp.toNumber()).to.equal(await currentTimestamp());
+      expect(gig.countdownTimestamp).to.equal(BigNumber.from(0));
+      expect(gig.durations).to.deep.equal([
+        BigNumber.from(1000),
+        BigNumber.from(1000),
+        BigNumber.from(10000),
+      ]);
+      expect(gig.resolver).to.equal(signers[2].address);
+      expect(gig.flatResolverFee).to.equal(BigNumber.from(1000));
+      expect(gig.feeRewardRatio).to.deep.equal([0, 1]);
+      expect(gig.thirdParties).to.deep.equal([ZERO_ADDRESS, ZERO_ADDRESS]);
+    });
   });
 });

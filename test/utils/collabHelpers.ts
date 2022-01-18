@@ -1,6 +1,7 @@
 import { Log, TransactionReceipt } from '@ethersproject/abstract-provider';
 import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
+
 import { MetaCollab } from '../../types/MetaCollab';
 
 export const awaitCollabAddress = async (receipt: TransactionReceipt) => {
