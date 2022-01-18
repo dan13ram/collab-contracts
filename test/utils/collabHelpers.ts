@@ -104,6 +104,7 @@ export const createTestGig = async (
   tokens: MockContract[],
   amounts: number[],
   resolver: string,
+  feeRewardRatio: number[] = [0, 1],
 ): Promise<ContractTransaction> => {
   const data = {
     types: TYPES.createNewGig,
@@ -113,7 +114,7 @@ export const createTestGig = async (
       amounts,
       [10, 10, 20],
       resolver,
-      [0, 1],
+      feeRewardRatio,
       collab.address,
       0,
     ],
@@ -137,6 +138,7 @@ export const startTestGig = async (
   tokens: MockContract[],
   amounts: number[],
   resolver: string,
+  feeRewardRatio: number[] = [0, 1],
 ): Promise<ContractTransaction> => {
   const data = {
     types: TYPES.startNewGig,
@@ -146,7 +148,7 @@ export const startTestGig = async (
       amounts,
       [10, 10, 20],
       resolver,
-      [0, 1],
+      feeRewardRatio,
       collab.address,
       0,
     ],

@@ -17,11 +17,11 @@ import {
 } from './utils/collabHelpers';
 import {
   currentTimestamp,
-  increaseTimestamp,
   deploy,
   deploySignatureDecoder,
   erc20ABI,
   getContractAt,
+  increaseTimestamp,
   multisig,
 } from './utils/ethersHelpers';
 
@@ -984,6 +984,391 @@ describe('MetaCollab', () => {
     });
   });
 
+  describe('resolveGig', () => {
+    it('Should revert resolve if not resolver', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+      await collab.lockGig(0, { value: 10 });
+
+      const tx = collab.resolveGig(0, [1, 0, 0], [1, 0], EMPTY_BYTES32);
+      await expect(tx).to.be.revertedWith('only resolver');
+    });
+
+    it('Should revert resolve if invalid gig', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+
+      const tx = collab
+        .connect(signers[2])
+        .resolveGig(0, [1, 0, 0], [1, 0], EMPTY_BYTES32);
+      await expect(tx).to.be.revertedWith('invalid gig');
+    });
+
+    it('Should revert resolve if invalid fee ratio', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+      await collab.lockGig(0, { value: 10 });
+
+      const tx = collab
+        .connect(signers[2])
+        .resolveGig(0, [0, 0, 0], [1, 0], EMPTY_BYTES32);
+      await expect(tx).to.be.revertedWith('invalid ratio');
+    });
+
+    it('Should revert resolve if invalid reward ratio', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+      await collab.lockGig(0, { value: 10 });
+
+      const tx = collab
+        .connect(signers[2])
+        .resolveGig(0, [1, 0, 0], [0, 0], EMPTY_BYTES32);
+      await expect(tx).to.be.revertedWith('invalid ratio');
+    });
+
+    it('Should resolve correctly', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+      await collab.lockGig(0, { value: 10 });
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[1].address, 10)
+        .returns(true);
+      const tx = await collab
+        .connect(signers[2])
+        .resolveGig(0, [1, 0, 0], [0, 1], EMPTY_BYTES32);
+      await tx.wait();
+
+      await expect(tx)
+        .to.emit(collab, 'GigResolved')
+        .withArgs(0, [1, 0, 0], [0, 1], EMPTY_BYTES32);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.status).to.deep.equal(GigStatus.resolved);
+    });
+
+    it('Should resolve and distribute fees', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+        [1, 1],
+      );
+
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+      await collab.lockGig(0, { value: 10 });
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[0].address, 2)
+        .returns(true);
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[1].address, 3)
+        .returns(true);
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[2].address, 1)
+        .returns(true);
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[2].address, 2)
+        .returns(true);
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[2].address, 2)
+        .returns(true);
+      const tx = await collab
+        .connect(signers[2])
+        .resolveGig(0, [1, 2, 2], [2, 3], EMPTY_BYTES32);
+      await tx.wait();
+
+      await expect(tx)
+        .to.emit(collab, 'GigResolved')
+        .withArgs(0, [1, 2, 2], [2, 3], EMPTY_BYTES32);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.status).to.deep.equal(GigStatus.resolved);
+    });
+
+    it('Should resolve and distribute fees to third parties', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+        [1, 1],
+      );
+
+      let tx = await collab.updateGigThirdParty(0, signers[3].address);
+      await tx.wait();
+      tx = await collab
+        .connect(signers[1])
+        .updateGigThirdParty(0, signers[4].address);
+      await tx.wait();
+
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+      await collab.lockGig(0, { value: 10 });
+
+      let gig: Gig = await getGig(collab, 0);
+      expect(gig.status).to.deep.equal(GigStatus.locked);
+      expect(gig.thirdParties).to.deep.equal([
+        signers[3].address,
+        signers[4].address,
+      ]);
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[0].address, 2)
+        .returns(true);
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[1].address, 3)
+        .returns(true);
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[2].address, 2)
+        .returns(true);
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[3].address, 2)
+        .returns(true);
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[4].address, 1)
+        .returns(true);
+
+      tx = await collab
+        .connect(signers[2])
+        .resolveGig(0, [2, 2, 1], [2, 3], EMPTY_BYTES32);
+      await tx.wait();
+
+      await expect(tx)
+        .to.emit(collab, 'GigResolved')
+        .withArgs(0, [2, 2, 1], [2, 3], EMPTY_BYTES32);
+
+      gig = await getGig(collab, 0);
+      expect(gig.status).to.deep.equal(GigStatus.resolved);
+    });
+  });
+
+  describe('updateGigHash', () => {
+    it('Should revert update hash if invalid collab', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigHash,
+        values: [ZERO_ADDRESS, 0, EMPTY_BYTES32],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigHash(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid data');
+    });
+
+    it('Should revert update hash if invalid signatures', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigHash,
+        values: [collab.address, 0, EMPTY_BYTES32],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[2],
+      ]);
+
+      const tx = collab.updateGigHash(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid signatures');
+    });
+
+    it('Should revert update hash in countdown', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+
+      const data = {
+        types: TYPES.updateGigHash,
+        values: [collab.address, 0, EMPTY_BYTES32],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigHash(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid gig');
+    });
+
+    it('Should update hash', async () => {
+      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigHash,
+        values: [collab.address, 0, EMPTY_BYTES32],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = await collab.updateGigHash(encodedData, signatures);
+      await expect(tx)
+        .to.emit(collab, 'GigHashUpdated')
+        .withArgs(0, EMPTY_BYTES32);
+    });
+  });
+
+  describe('updateGigResolver', () => {
+    it('Should revert update resolver if invalid collab', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [ZERO_ADDRESS, 0, signers[2].address, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid data');
+    });
+
+    it('Should revert update resolver if invalid resolver', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, ZERO_ADDRESS, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid data');
+    });
+
+    it('Should revert update resolver if invalid ratio', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, signers[2].address, [0, 0]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid data');
+    });
+
+    it('Should revert update resolver if invalid signatures', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, signers[2].address, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[2],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid signatures');
+    });
+
+    it('Should revert update resolver in countdown', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, signers[2].address, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid gig');
+    });
+
+    it('Should update resolver', async () => {
+      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, signers[2].address, [1, 10]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = await collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.emit(collab, 'GigResolverUpdated').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+
+      expect(gig.resolver).to.equal(signers[2].address);
+      expect(gig.flatResolverFee).to.equal(BigNumber.from(10));
+      expect(gig.feeRewardRatio).to.deep.equal([1, 10]);
+    });
+  });
+
   describe('updateGigThirdParty', () => {
     it('Should revert update third party if not party', async () => {
       await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
@@ -1016,6 +1401,7 @@ describe('MetaCollab', () => {
       const tx = collab.updateGigThirdParty(0, signers[3].address);
       await expect(tx).to.be.revertedWith('invalid gig');
     });
+
     it('Should update third party', async () => {
       await createTestGig(
         collab,
@@ -1104,94 +1490,6 @@ describe('MetaCollab', () => {
         signers[3].address,
         signers[4].address,
       ]);
-    });
-  });
-
-  describe('updateGigResolver', () => {
-    it('Should revert update resolver if invalid collab', async () => {
-      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
-
-      const data = {
-        types: TYPES.updateGigResolver,
-        values: [ZERO_ADDRESS, 0, signers[2].address, [0, 1]],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      const tx = collab.updateGigResolver(encodedData, signatures);
-      await expect(tx).to.be.revertedWith('invalid data');
-    });
-
-    it('Should revert update resolver if invalid resolver', async () => {
-      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
-
-      const data = {
-        types: TYPES.updateGigResolver,
-        values: [collab.address, 0, ZERO_ADDRESS, [0, 1]],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      const tx = collab.updateGigResolver(encodedData, signatures);
-      await expect(tx).to.be.revertedWith('invalid data');
-    });
-
-    it('Should revert update resolver if invalid ratio', async () => {
-      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
-
-      const data = {
-        types: TYPES.updateGigResolver,
-        values: [collab.address, 0, signers[2].address, [0, 0]],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      const tx = collab.updateGigResolver(encodedData, signatures);
-      await expect(tx).to.be.revertedWith('invalid data');
-    });
-
-    it('Should revert update resolver if invalid signatures', async () => {
-      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
-
-      const data = {
-        types: TYPES.updateGigResolver,
-        values: [collab.address, 0, signers[2].address, [0, 1]],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[2],
-      ]);
-
-      const tx = collab.updateGigResolver(encodedData, signatures);
-      await expect(tx).to.be.revertedWith('invalid signatures');
-    });
-
-    it('Should update resolver', async () => {
-      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
-
-      const data = {
-        types: TYPES.updateGigResolver,
-        values: [collab.address, 0, signers[2].address, [1, 10]],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      const tx = await collab.updateGigResolver(encodedData, signatures);
-      await expect(tx).to.emit(collab, 'GigResolverUpdated').withArgs(0);
-
-      const gig: Gig = await getGig(collab, 0);
-
-      expect(gig.resolver).to.equal(signers[2].address);
-      expect(gig.flatResolverFee).to.equal(BigNumber.from(10));
-      expect(gig.feeRewardRatio).to.deep.equal([1, 10]);
     });
   });
 });

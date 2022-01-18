@@ -382,7 +382,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
                         gig.thirdParties[0] == address(0)
                             ? gig.resolver
                             : gig.thirdParties[0],
-                        resolverFee
+                        funderThirdPartyFee
                     );
                 }
                 if (doerThirdPartyFee > 0) {
@@ -391,7 +391,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
                         gig.thirdParties[1] == address(0)
                             ? gig.resolver
                             : gig.thirdParties[1],
-                        resolverFee
+                        doerThirdPartyFee
                     );
                 }
             }
