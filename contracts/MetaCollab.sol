@@ -463,7 +463,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         emit GigResolverUpdated(_gigId);
     }
 
-    function updateThirdParty(uint256 _gigId, address _thirdParty)
+    function updateGigThirdParty(uint256 _gigId, address _thirdParty)
         external
         override
         onlyParty

@@ -37,5 +37,5 @@ interface ICollab {
     function updateGigResolver(bytes calldata _data, bytes calldata _signatures)
         external;
 
-    function updateThirdParty(uint256 _gigId, address _thirdParty) external;
+    function updateGigThirdParty(uint256 _gigId, address _thirdParty) external;
 }

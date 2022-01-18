@@ -984,22 +984,24 @@ describe('MetaCollab', () => {
     });
   });
 
-  describe('updateThirdParty', () => {
-    it('Should revert updateThirdParty if not party', async () => {
+  describe('updateGigThirdParty', () => {
+    it('Should revert update third party if not party', async () => {
       await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
 
-      const tx = collab.connect(signers[2]).updateThirdParty(0, ZERO_ADDRESS);
+      const tx = collab
+        .connect(signers[2])
+        .updateGigThirdParty(0, ZERO_ADDRESS);
       await expect(tx).to.be.revertedWith('only party');
     });
 
-    it('Should revert updateThirdParty if invalid address', async () => {
+    it('Should revert update third party if invalid address', async () => {
       await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
 
-      const tx = collab.updateThirdParty(0, ZERO_ADDRESS);
+      const tx = collab.updateGigThirdParty(0, ZERO_ADDRESS);
       await expect(tx).to.be.revertedWith('invalid thirdParty');
     });
 
-    it('Should revert updateThirdParty if locked', async () => {
+    it('Should revert update third party if locked', async () => {
       await startTestGig(
         collab,
         signers,
@@ -1011,10 +1013,10 @@ describe('MetaCollab', () => {
       await increaseTimestamp(11);
       await collab.lockGig(0, { value: 10 });
 
-      const tx = collab.updateThirdParty(0, signers[3].address);
+      const tx = collab.updateGigThirdParty(0, signers[3].address);
       await expect(tx).to.be.revertedWith('invalid gig');
     });
-    it('Should updateThirdParty', async () => {
+    it('Should update third party', async () => {
       await createTestGig(
         collab,
         signers,
@@ -1023,7 +1025,7 @@ describe('MetaCollab', () => {
         signers[2].address,
       );
 
-      const tx = await collab.updateThirdParty(0, signers[3].address);
+      const tx = await collab.updateGigThirdParty(0, signers[3].address);
       await tx.wait();
 
       await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
@@ -1035,7 +1037,7 @@ describe('MetaCollab', () => {
       ]);
     });
 
-    it('Should updateThirdParty after start', async () => {
+    it('Should update third party after start', async () => {
       await startTestGig(
         collab,
         signers,
@@ -1044,7 +1046,7 @@ describe('MetaCollab', () => {
         signers[2].address,
       );
 
-      const tx = await collab.updateThirdParty(0, signers[3].address);
+      const tx = await collab.updateGigThirdParty(0, signers[3].address);
       await tx.wait();
 
       await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
@@ -1056,29 +1058,7 @@ describe('MetaCollab', () => {
       ]);
     });
 
-    it('Should updateThirdParty in countdown', async () => {
-      await startTestGig(
-        collab,
-        signers,
-        [firstToken],
-        [10],
-        signers[2].address,
-      );
-      await collab.lockGig(0);
-
-      const tx = await collab.updateThirdParty(0, signers[3].address);
-      await tx.wait();
-
-      await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
-
-      const gig: Gig = await getGig(collab, 0);
-      expect(gig.thirdParties).to.deep.equal([
-        signers[3].address,
-        ZERO_ADDRESS,
-      ]);
-    });
-
-    it('Should updateThirdParty for both parties', async () => {
+    it('Should update third party in countdown', async () => {
       await startTestGig(
         collab,
         signers,
@@ -1088,11 +1068,33 @@ describe('MetaCollab', () => {
       );
       await collab.lockGig(0);
 
-      let tx = await collab.updateThirdParty(0, signers[3].address);
+      const tx = await collab.updateGigThirdParty(0, signers[3].address);
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.thirdParties).to.deep.equal([
+        signers[3].address,
+        ZERO_ADDRESS,
+      ]);
+    });
+
+    it('Should update third party for both parties', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+
+      let tx = await collab.updateGigThirdParty(0, signers[3].address);
       await tx.wait();
       tx = await collab
         .connect(signers[1])
-        .updateThirdParty(0, signers[4].address);
+        .updateGigThirdParty(0, signers[4].address);
       await tx.wait();
 
       await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
@@ -1102,6 +1104,94 @@ describe('MetaCollab', () => {
         signers[3].address,
         signers[4].address,
       ]);
+    });
+  });
+
+  describe('updateGigResolver', () => {
+    it('Should revert update resolver if invalid collab', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [ZERO_ADDRESS, 0, signers[2].address, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid data');
+    });
+
+    it('Should revert update resolver if invalid resolver', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, ZERO_ADDRESS, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid data');
+    });
+
+    it('Should revert update resolver if invalid ratio', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, signers[2].address, [0, 0]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid data');
+    });
+
+    it('Should revert update resolver if invalid signatures', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, signers[2].address, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[2],
+      ]);
+
+      const tx = collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid signatures');
+    });
+
+    it('Should update resolver', async () => {
+      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.updateGigResolver,
+        values: [collab.address, 0, signers[2].address, [1, 10]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = await collab.updateGigResolver(encodedData, signatures);
+      await expect(tx).to.emit(collab, 'GigResolverUpdated').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+
+      expect(gig.resolver).to.equal(signers[2].address);
+      expect(gig.flatResolverFee).to.equal(BigNumber.from(10));
+      expect(gig.feeRewardRatio).to.deep.equal([1, 10]);
     });
   });
 });
