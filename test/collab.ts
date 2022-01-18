@@ -25,7 +25,7 @@ import {
   multisig,
 } from './utils/ethersHelpers';
 
-const { deployMockContract } = waffle;
+const { deployMockContract, provider } = waffle;
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const EMPTY_BYTES32 =
@@ -701,6 +701,108 @@ describe('MetaCollab', () => {
       const gig: Gig = await getGig(collab, 0);
 
       expect(gig.status).to.equal(GigStatus.cancelled);
+    });
+  });
+
+  describe('lockGig', () => {
+    it('Should revert lock if invalid resolver', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+      const tx = collab.lockGig(0);
+      await expect(tx).to.be.revertedWith('invalid resolver');
+    });
+
+    it('Should revert lock if not party', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      const tx = collab.connect(signers[3]).lockGig(0);
+      await expect(tx).to.be.revertedWith('only party');
+    });
+
+    it('Should revert lock if gig not started', async () => {
+      await createTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      const tx = collab.lockGig(0);
+      await expect(tx).to.be.revertedWith('invalid gig');
+    });
+
+    it('Should start countdown on lock', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      const tx = await collab.lockGig(0);
+      await expect(tx).to.emit(collab, 'GigLockCountdownStarted').withArgs(0);
+      await tx.wait();
+
+      const gig: Gig = await getGig(collab, 0);
+
+      expect(gig.status).to.equal(GigStatus.countdown);
+      expect(gig.countdownTimestamp).to.equal(await currentTimestamp());
+    });
+
+    it('Should revert if still counting on lock', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+
+      await expect(collab.lockGig(0)).to.be.revertedWith('still counting');
+    });
+
+    it('Should revert if still counting on lock', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+
+      await expect(collab.lockGig(0)).to.be.revertedWith('invalid value');
+    });
+
+    it('Should lock after countdown', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+
+      const balance = await provider.getBalance(signers[2].address);
+      const tx = await collab.lockGig(0, { value: 10 });
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigLockedForDispute').withArgs(0);
+      expect(await provider.getBalance(signers[2].address)).to.equal(
+        balance.add(10),
+      );
+
+      const gig: Gig = await getGig(collab, 0);
+
+      expect(gig.status).to.equal(GigStatus.locked);
     });
   });
 });
