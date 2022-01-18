@@ -29,7 +29,6 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         locked,
         resolved,
         cancelled,
-        expired,
         done
     }
 
@@ -53,7 +52,6 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
     event GigLockCountdownStarted(uint256 indexed gigId);
     event GigLockedForDispute(uint256 indexed gigId);
     event GigCancelled(uint256 indexed gigId);
-    event GigExpired(uint256 indexed gigId);
     event GigThirdPartyUpdated(uint256 indexed gigId);
     event GigDone(uint256 indexed gigId, uint8[2] rewardRatie);
     event GigResolved(
@@ -240,6 +238,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         nonReentrant
         onlyFunder
     {
+        require(_gigId < gigCount, "invalid gig");
         _startGig(_gigId);
     }
 
@@ -271,18 +270,24 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         onlyFunder
     {
         Gig storage gig = gigs[_gigId];
-        require(gig.status == Status.active, "invalid gig");
-        uint256 timeElapsed = block.timestamp - gig.startTimestamp;
+        require(
+            gig.status == Status.active || gig.status == Status.init,
+            "invalid gig"
+        );
 
-        if (timeElapsed < gig.durations[0]) {
+        if (gig.status == Status.init) {
             gig.status = Status.cancelled;
             emit GigCancelled(_gigId);
-        } else if (timeElapsed > gig.durations[2]) {
-            gig.status = Status.expired;
-            emit GigExpired(_gigId);
-        } else {
-            revert("invalid timestamp");
+            return;
         }
+        uint256 timeElapsed = block.timestamp - gig.startTimestamp;
+        require(
+            timeElapsed < gig.durations[0] || timeElapsed > gig.durations[2],
+            "invalid timestamp"
+        );
+
+        gig.status = Status.cancelled;
+        emit GigCancelled(_gigId);
         uint8[2] memory rewardRatio = [1, 0];
         _distributeGigRewards(_gigId, rewardRatio);
     }
