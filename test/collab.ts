@@ -871,6 +871,31 @@ describe('MetaCollab', () => {
       await expect(tx).to.be.revertedWith('invalid ratio');
     });
 
+    it('Should revert complete if locked', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+      await collab.lockGig(0, { value: 10 });
+
+      const data = {
+        types: TYPES.completeGig,
+        values: [collab.address, 0, [0, 0]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.completeGig(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid gig');
+    });
+
     it('Should complete gig', async () => {
       await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
 
@@ -956,6 +981,127 @@ describe('MetaCollab', () => {
 
       const gig: Gig = await getGig(collab, 0);
       expect(gig.status).to.equal(GigStatus.done);
+    });
+  });
+
+  describe('updateThirdParty', () => {
+    it('Should revert updateThirdParty if not party', async () => {
+      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const tx = collab.connect(signers[2]).updateThirdParty(0, ZERO_ADDRESS);
+      await expect(tx).to.be.revertedWith('only party');
+    });
+
+    it('Should revert updateThirdParty if invalid address', async () => {
+      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const tx = collab.updateThirdParty(0, ZERO_ADDRESS);
+      await expect(tx).to.be.revertedWith('invalid thirdParty');
+    });
+
+    it('Should revert updateThirdParty if locked', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+      await increaseTimestamp(11);
+      await collab.lockGig(0, { value: 10 });
+
+      const tx = collab.updateThirdParty(0, signers[3].address);
+      await expect(tx).to.be.revertedWith('invalid gig');
+    });
+    it('Should updateThirdParty', async () => {
+      await createTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+
+      const tx = await collab.updateThirdParty(0, signers[3].address);
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.thirdParties).to.deep.equal([
+        signers[3].address,
+        ZERO_ADDRESS,
+      ]);
+    });
+
+    it('Should updateThirdParty after start', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+
+      const tx = await collab.updateThirdParty(0, signers[3].address);
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.thirdParties).to.deep.equal([
+        signers[3].address,
+        ZERO_ADDRESS,
+      ]);
+    });
+
+    it('Should updateThirdParty in countdown', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+
+      const tx = await collab.updateThirdParty(0, signers[3].address);
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.thirdParties).to.deep.equal([
+        signers[3].address,
+        ZERO_ADDRESS,
+      ]);
+    });
+
+    it('Should updateThirdParty for both parties', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+      await collab.lockGig(0);
+
+      let tx = await collab.updateThirdParty(0, signers[3].address);
+      await tx.wait();
+      tx = await collab
+        .connect(signers[1])
+        .updateThirdParty(0, signers[4].address);
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigThirdPartyUpdated').withArgs(0);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.thirdParties).to.deep.equal([
+        signers[3].address,
+        signers[4].address,
+      ]);
     });
   });
 });
