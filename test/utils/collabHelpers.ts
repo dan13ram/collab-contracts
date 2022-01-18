@@ -1,8 +1,15 @@
 import { Log, TransactionReceipt } from '@ethersproject/abstract-provider';
-import { BigNumber } from 'ethers';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { MockContract } from 'ethereum-waffle';
+import { BigNumber, ContractTransaction } from 'ethers';
 import { ethers } from 'hardhat';
 
 import { MetaCollab } from '../../types/MetaCollab';
+import { multisig } from './ethersHelpers';
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const EMPTY_BYTES32 =
+  '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 export const awaitCollabAddress = async (receipt: TransactionReceipt) => {
   if (!receipt || !receipt.logs) return '';
@@ -91,4 +98,77 @@ export const TYPES: { [any: string]: string[] } = {
   completeGig: ['address', 'uint256', 'uint8[2]'],
   updateGigHash: ['address', 'uint256', 'bytes'],
   updateGigResolver: ['address', 'uint256', 'address', 'uint8[2]'],
+};
+
+export const createTestGig = async (
+  collab: MetaCollab,
+  signers: SignerWithAddress[],
+  tokens: MockContract[],
+  amounts: number[],
+  resolver: string,
+): Promise<ContractTransaction> => {
+  const data = {
+    types: TYPES.startNewGig,
+    values: [
+      EMPTY_BYTES32,
+      tokens.map(t => t.address),
+      amounts,
+      [10, 10, 20],
+      resolver,
+      [0, 1],
+      collab.address,
+      0,
+    ],
+  };
+
+  const [encodedData, signatures] = await multisig(data, [
+    signers[0],
+    signers[1],
+  ]);
+
+  const tx = await collab.createNewGig(encodedData, signatures);
+
+  await tx.wait();
+
+  return tx;
+};
+
+export const startTestGig = async (
+  collab: MetaCollab,
+  signers: SignerWithAddress[],
+  tokens: MockContract[],
+  amounts: number[],
+  resolver: string,
+): Promise<ContractTransaction> => {
+  const data = {
+    types: TYPES.startNewGig,
+    values: [
+      EMPTY_BYTES32,
+      tokens.map(t => t.address),
+      amounts,
+      [10, 10, 20],
+      resolver,
+      [0, 1],
+      collab.address,
+      0,
+    ],
+  };
+
+  const [encodedData, signatures] = await multisig(data, [
+    signers[0],
+    signers[1],
+  ]);
+
+  await Promise.all(
+    tokens.map((t, i) =>
+      t.mock.transferFrom
+        .withArgs(signers[0].address, collab.address, amounts[i])
+        .returns(true),
+    ),
+  );
+  const tx = await collab.startNewGig(encodedData, signatures);
+
+  await tx.wait();
+
+  return tx;
 };

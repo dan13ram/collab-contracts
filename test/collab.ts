@@ -8,9 +8,11 @@ import { MetaCollab } from '../types/MetaCollab';
 import { MetaCollabFactory } from '../types/MetaCollabFactory';
 import {
   awaitCollabAddress,
+  createTestGig,
   getGig,
   Gig,
   GigStatus,
+  startTestGig,
   TYPES,
 } from './utils/collabHelpers';
 import {
@@ -470,30 +472,13 @@ describe('MetaCollab', () => {
     });
 
     it('Should create and start a new gig', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address],
-          [10],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      await firstToken.mock.transferFrom
-        .withArgs(signers[0].address, collab.address, 10)
-        .returns(true);
-      const tx = await collab.startNewGig(encodedData, signatures);
-
-      await tx.wait();
+      const tx = await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        ZERO_ADDRESS,
+      );
 
       await expect(tx).to.emit(collab, 'GigInit').withArgs(0, EMPTY_BYTES32);
       expect(await collab.gigCount()).to.equal(1);
@@ -517,33 +502,13 @@ describe('MetaCollab', () => {
     });
 
     it('Should create and start a new gig with two tokens', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address, secondToken.address],
-          [10, 20],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      await firstToken.mock.transferFrom
-        .withArgs(signers[0].address, collab.address, 10)
-        .returns(true);
-      await secondToken.mock.transferFrom
-        .withArgs(signers[0].address, collab.address, 20)
-        .returns(true);
-      const tx = await collab.startNewGig(encodedData, signatures);
-
-      await tx.wait();
+      const tx = await startTestGig(
+        collab,
+        signers,
+        [firstToken, secondToken],
+        [10, 20],
+        ZERO_ADDRESS,
+      );
 
       await expect(tx).to.emit(collab, 'GigInit').withArgs(0, EMPTY_BYTES32);
       expect(await collab.gigCount()).to.equal(1);
@@ -573,31 +538,13 @@ describe('MetaCollab', () => {
     });
 
     it('Should create and start a new gig with resolver flat fee', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address],
-          [10],
-          [10, 10, 20],
-          signers[2].address,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      await firstToken.mock.transferFrom
-        .withArgs(signers[0].address, collab.address, 10)
-        .returns(true);
-
-      const tx = await collab.startNewGig(encodedData, signatures);
-
-      await tx.wait();
+      const tx = await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
 
       await expect(tx).to.emit(collab, 'GigInit').withArgs(0, EMPTY_BYTES32);
       expect(await collab.gigCount()).to.equal(1);
@@ -633,62 +580,21 @@ describe('MetaCollab', () => {
     });
 
     it('Should revert start if already started', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address],
-          [10],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      await firstToken.mock.transferFrom
-        .withArgs(signers[0].address, collab.address, 10)
-        .returns(true);
-      const tx = await collab.startNewGig(encodedData, signatures);
-
-      await tx.wait();
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
 
       expect(await collab.gigCount()).to.equal(1);
+
       await expect(collab.startGig(0)).to.be.revertedWith('invalid gig');
     });
 
     it('Should start an existing gig', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address],
-          [10],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
+      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
 
       await firstToken.mock.transferFrom
         .withArgs(signers[0].address, collab.address, 10)
         .returns(true);
-      let tx = await collab.createNewGig(encodedData, signatures);
 
-      await tx.wait();
-
-      tx = await collab.startGig(0);
+      const tx = await collab.startGig(0);
 
       await tx.wait();
 
@@ -700,23 +606,13 @@ describe('MetaCollab', () => {
     });
 
     it('Should start an existing gig with two tokens', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address, secondToken.address],
-          [10, 20],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
+      await createTestGig(
+        collab,
+        signers,
+        [firstToken, secondToken],
+        [10, 20],
+        ZERO_ADDRESS,
+      );
 
       await firstToken.mock.transferFrom
         .withArgs(signers[0].address, collab.address, 10)
@@ -725,11 +621,7 @@ describe('MetaCollab', () => {
         .withArgs(signers[0].address, collab.address, 20)
         .returns(true);
 
-      let tx = await collab.createNewGig(encodedData, signatures);
-
-      await tx.wait();
-
-      tx = await collab.startGig(0);
+      const tx = await collab.startGig(0);
 
       await tx.wait();
 
@@ -753,31 +645,11 @@ describe('MetaCollab', () => {
     });
 
     it('Should cancel gig if not started', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address],
-          [10],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      let tx = await collab.createNewGig(encodedData, signatures);
-
-      await tx.wait();
+      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
 
       expect(await collab.gigCount()).to.equal(1);
 
-      tx = await collab.cancelGig(0);
+      const tx = await collab.cancelGig(0);
 
       await expect(tx).to.emit(collab, 'GigCancelled').withArgs(0);
 
@@ -787,30 +659,7 @@ describe('MetaCollab', () => {
     });
 
     it('Should revert cancel gig if after cancellation and before expiration', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address],
-          [10],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      await firstToken.mock.transferFrom
-        .withArgs(signers[0].address, collab.address, 10)
-        .returns(true);
-      let tx = await collab.startNewGig(encodedData, signatures);
-
-      await tx.wait();
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
 
       expect(await collab.gigCount()).to.equal(1);
 
@@ -820,37 +669,13 @@ describe('MetaCollab', () => {
     });
 
     it('Should cancel gig if within cancellation duration', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address],
-          [10],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      await firstToken.mock.transferFrom
-        .withArgs(signers[0].address, collab.address, 10)
-        .returns(true);
-      let tx = await collab.startNewGig(encodedData, signatures);
-
-      await tx.wait();
-
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
       expect(await collab.gigCount()).to.equal(1);
 
       await firstToken.mock.transferFrom
         .withArgs(collab.address, signers[0].address, 10)
         .returns(true);
-      tx = await collab.cancelGig(0);
+      const tx = await collab.cancelGig(0);
 
       await expect(tx).to.emit(collab, 'GigCancelled').withArgs(0);
 
@@ -860,30 +685,7 @@ describe('MetaCollab', () => {
     });
 
     it('Should cancel gig if after expiration', async () => {
-      const data = {
-        types: TYPES.startNewGig,
-        values: [
-          EMPTY_BYTES32,
-          [firstToken.address],
-          [10],
-          [10, 10, 20],
-          ZERO_ADDRESS,
-          [0, 1],
-          collab.address,
-          0,
-        ],
-      };
-      const [encodedData, signatures] = await multisig(data, [
-        signers[0],
-        signers[1],
-      ]);
-
-      await firstToken.mock.transferFrom
-        .withArgs(signers[0].address, collab.address, 10)
-        .returns(true);
-      let tx = await collab.startNewGig(encodedData, signatures);
-
-      await tx.wait();
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
 
       expect(await collab.gigCount()).to.equal(1);
 
@@ -892,7 +694,7 @@ describe('MetaCollab', () => {
       await firstToken.mock.transferFrom
         .withArgs(collab.address, signers[0].address, 10)
         .returns(true);
-      tx = await collab.cancelGig(0);
+      const tx = await collab.cancelGig(0);
 
       await expect(tx).to.emit(collab, 'GigCancelled').withArgs(0);
 
