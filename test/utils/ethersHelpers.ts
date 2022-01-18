@@ -1,9 +1,10 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { ethers } from 'hardhat';
-import { Contract } from '@ethersproject/contracts';
-import { Libraries } from '@nomiclabs/hardhat-ethers/types';
-import { SignatureDecoder } from '../../types/SignatureDecoder';
 import { AbiCoder, Interface } from '@ethersproject/abi';
+import { Contract } from '@ethersproject/contracts';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { Libraries } from '@nomiclabs/hardhat-ethers/types';
+import { ethers } from 'hardhat';
+
+import { SignatureDecoder } from '../../types/SignatureDecoder';
 
 export const abiCoder = new AbiCoder();
 

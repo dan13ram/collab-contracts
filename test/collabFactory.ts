@@ -1,16 +1,16 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { expect } from 'chai';
+import { ContractFactory } from 'ethers';
 import { ethers } from 'hardhat';
 
-import { awaitCollabAddress } from './utils/collabHelpers';
 import { MetaCollab } from '../types/MetaCollab';
 import { MetaCollabFactory } from '../types/MetaCollabFactory';
+import { awaitCollabAddress } from './utils/collabHelpers';
 import {
   deploy,
   deploySignatureDecoder,
   getContractAt,
 } from './utils/ethersHelpers';
-import { ContractFactory } from 'ethers';
 
 const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 const EMPTY_BYTES32 =

@@ -1,5 +1,5 @@
+import { Log, TransactionReceipt } from '@ethersproject/abstract-provider';
 import { ethers } from 'hardhat';
-import { TransactionReceipt, Log } from '@ethersproject/abstract-provider';
 
 export const awaitCollabAddress = async (receipt: TransactionReceipt) => {
   if (!receipt || !receipt.logs) return '';
