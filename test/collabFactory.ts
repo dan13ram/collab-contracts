@@ -12,11 +12,11 @@ import {
   getContractAt,
 } from './utils/ethersHelpers';
 
-const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const EMPTY_BYTES32 =
   '0x0000000000000000000000000000000000000000000000000000000000000000';
 
-describe('MetaCollabFactory', function () {
+describe('MetaCollabFactory', () => {
   let metaCollab: MetaCollab;
   let collabFactory: MetaCollabFactory;
   let MetaCollabFactory: ContractFactory;
@@ -25,7 +25,7 @@ describe('MetaCollabFactory', function () {
   let funder: string;
   let doer: string;
 
-  beforeEach(async function () {
+  beforeEach(async () => {
     signers = await ethers.getSigners();
 
     const signatureDecoder = await deploySignatureDecoder();
@@ -43,22 +43,33 @@ describe('MetaCollabFactory', function () {
     await collabFactory.deployed();
   });
 
-  it('Should deploy with 0 collabCount', async function () {
+  it('Should deploy with 0 collabCount', async () => {
     const collabCount = await collabFactory.collabCount();
     expect(collabCount).to.equal(0);
   });
 
-  it('Should revert deploy if zero implementation', async function () {
-    const receipt = MetaCollabFactory.deploy(ADDRESS_ZERO);
-    await expect(receipt).to.revertedWith('invalid implementation');
+  it('Should revert deploy if zero implementation', async () => {
+    const tx = MetaCollabFactory.deploy(ZERO_ADDRESS);
+    await expect(tx).to.revertedWith('invalid implementation');
   });
 
-  it('Should deploy a MetaCollab', async function () {
+  it('Should revert init for implementation', async () => {
+    const tx = metaCollab.init(
+      signers[0].address,
+      signers[1].address,
+      signers[2].address,
+    );
+    await expect(tx).to.revertedWith(
+      'Initializable: contract is already initialized',
+    );
+  });
+
+  it('Should deploy a MetaCollab', async () => {
     funder = signers[0].address;
     doer = signers[1].address;
-    const receipt = await collabFactory.create(funder, doer);
-    collabAddress = await awaitCollabAddress(await receipt.wait());
-    await expect(receipt)
+    const tx = await collabFactory.create(funder, doer);
+    collabAddress = await awaitCollabAddress(await tx.wait());
+    await expect(tx)
       .to.emit(collabFactory, 'LogNewCollab')
       .withArgs(0, collabAddress);
 
@@ -66,11 +77,12 @@ describe('MetaCollabFactory', function () {
 
     expect(await collab.funder()).to.equal(funder);
     expect(await collab.doer()).to.equal(doer);
+    expect(await collab.feeStore()).to.equal(collabFactory.address);
 
     expect(await collabFactory.getCollabAddress(0)).to.equal(collabAddress);
   });
 
-  it('Should predict MetaCollab address', async function () {
+  it('Should predict MetaCollab address', async () => {
     funder = signers[0].address;
     doer = signers[1].address;
 
@@ -78,14 +90,14 @@ describe('MetaCollabFactory', function () {
       EMPTY_BYTES32,
     );
 
-    const receipt = await collabFactory.createDeterministic(
+    const tx = await collabFactory.createDeterministic(
       funder,
       doer,
       EMPTY_BYTES32,
     );
 
-    collabAddress = await awaitCollabAddress(await receipt.wait());
-    await expect(receipt)
+    collabAddress = await awaitCollabAddress(await tx.wait());
+    await expect(tx)
       .to.emit(collabFactory, 'LogNewCollab')
       .withArgs(0, collabAddress);
 
@@ -93,26 +105,26 @@ describe('MetaCollabFactory', function () {
     expect(await collabFactory.getCollabAddress(0)).to.equal(collabAddress);
   });
 
-  it('Should update collabCount', async function () {
+  it('Should update collabCount', async () => {
     expect(await collabFactory.collabCount()).to.equal(0);
-    let receipt = await collabFactory.create(funder, doer);
-    const collab0 = await awaitCollabAddress(await receipt.wait());
+    let tx = await collabFactory.create(funder, doer);
+    const collab0 = await awaitCollabAddress(await tx.wait());
     expect(await collabFactory.collabCount()).to.equal(1);
-    receipt = await collabFactory.create(funder, doer);
-    const collab1 = await awaitCollabAddress(await receipt.wait());
+    tx = await collabFactory.create(funder, doer);
+    const collab1 = await awaitCollabAddress(await tx.wait());
     expect(await collabFactory.collabCount()).to.equal(2);
 
     expect(await collabFactory.getCollabAddress(0)).to.equal(collab0);
     expect(await collabFactory.getCollabAddress(1)).to.equal(collab1);
   });
 
-  it('Should update flatFee', async function () {
+  it('Should update flatFee', async () => {
     let flatFee = await collabFactory.flatFees(signers[2].address);
     expect(flatFee).to.equal(0);
-    const receipt = await collabFactory
+    const tx = await collabFactory
       .connect(signers[2])
       .updateFlatFee(10, EMPTY_BYTES32);
-    await expect(receipt)
+    await expect(tx)
       .to.emit(collabFactory, 'UpdateFlatFee')
       .withArgs(signers[2].address, 10, EMPTY_BYTES32);
 

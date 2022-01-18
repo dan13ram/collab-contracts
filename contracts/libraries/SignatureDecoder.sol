@@ -94,7 +94,7 @@ library SignatureDecoder {
         require(
             (signers[0] == _a && signers[1] == _b) ||
                 (signers[0] == _b && signers[1] == _a),
-            "invalid signature"
+            "invalid signatures"
         );
     }
 }

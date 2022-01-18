@@ -14,4 +14,8 @@ interface ICollabFactory {
     function predictDeterministicAddress(bytes32 _salt)
         external
         returns (address);
+
+    function flatFees(address _resolver) external returns (uint256);
+
+    function updateFlatFee(uint256 _fee, bytes calldata _hash) external;
 }

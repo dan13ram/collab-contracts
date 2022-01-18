@@ -1,5 +1,7 @@
 import { Log, TransactionReceipt } from '@ethersproject/abstract-provider';
+import { BigNumber } from 'ethers';
 import { ethers } from 'hardhat';
+import { MetaCollab } from '../../types/MetaCollab';
 
 export const awaitCollabAddress = async (receipt: TransactionReceipt) => {
   if (!receipt || !receipt.logs) return '';
@@ -18,4 +20,74 @@ export const awaitCollabAddress = async (receipt: TransactionReceipt) => {
     return decodedLog.invoice;
   }
   return '';
+};
+
+export enum GigStatus {
+  init,
+  active,
+  countdown,
+  locked,
+  resolved,
+  cancelled,
+  expired,
+  done,
+}
+
+export type Gig = {
+  status: GigStatus;
+  tokens: string[];
+  amounts: BigNumber[];
+  startTimestamp: BigNumber;
+  countdownTimestamp: BigNumber;
+  durations: BigNumber[];
+  resolver: string;
+  flatResolverFee: BigNumber;
+  feeRewardRatio: number[];
+  thirdParties: string[];
+};
+
+export const getGig = async (
+  collab: MetaCollab,
+  gigId: number,
+): Promise<Gig> => {
+  const gig = await collab.getGig(gigId);
+
+  return {
+    status: gig[0] as GigStatus,
+    tokens: gig[1],
+    amounts: gig[2],
+    startTimestamp: gig[3],
+    countdownTimestamp: gig[4],
+    durations: gig[5],
+    resolver: gig[6],
+    flatResolverFee: gig[7],
+    feeRewardRatio: gig[8],
+    thirdParties: gig[9],
+  };
+};
+
+export const TYPES: { [any: string]: string[] } = {
+  createNewGig: [
+    'bytes',
+    'address[]',
+    'uint256[]',
+    'uint256[3]',
+    'address',
+    'uint8[2]',
+    'address',
+    'uint256',
+  ],
+  startNewGig: [
+    'bytes',
+    'address[]',
+    'uint256[]',
+    'uint256[3]',
+    'address',
+    'uint8[2]',
+    'address',
+    'uint256',
+  ],
+  completeGig: ['address', 'uint256', 'uint8[2]'],
+  updateGigHash: ['address', 'uint256', 'bytes'],
+  updateGigResolver: ['address', 'uint256', 'address', 'uint8[2]'],
 };

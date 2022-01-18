@@ -1,4 +1,4 @@
-import { AbiCoder, Interface } from '@ethersproject/abi';
+import { AbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { Libraries } from '@nomiclabs/hardhat-ethers/types';
@@ -8,11 +8,9 @@ import { SignatureDecoder } from '../../types/SignatureDecoder';
 
 export const abiCoder = new AbiCoder();
 
-export const erc20ABI = (): Interface => {
-  return new Interface(
-    require(`../../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json`).abi,
-  );
-};
+export const erc20ABI = (): any[] =>
+  require(`../../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json`)
+    .abi;
 
 export const currentTimestamp = async (): Promise<number> => {
   const block = await ethers.provider.getBlock('latest');
@@ -32,6 +30,7 @@ export const currentTimestamp = async (): Promise<number> => {
 export const encodeData = (data: { types: any; values: any }): string => {
   return abiCoder.encode(data.types, data.values);
 };
+
 /**
  * Sign data from one or more ethers wallets
  *
