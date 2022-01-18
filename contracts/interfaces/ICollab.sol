@@ -26,9 +26,8 @@ interface ICollab {
 
     function resolveGig(
         uint256 _gigId,
-        uint8 _funderShare,
-        uint8 _doerShare,
-        uint8[3] calldata _thirdPartyRatio,
+        uint8[3] calldata _feeRatio,
+        uint8[2] calldata _rewardRatio,
         bytes calldata hash
     ) external;
 
