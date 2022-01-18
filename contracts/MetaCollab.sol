@@ -246,7 +246,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         internal
     {
         uint8 rewardDenom = _rewardRatio[0] + _rewardRatio[1];
-        require(rewardDenom != 0, "invalid distribution");
+        require(rewardDenom != 0, "invalid ratio");
         Gig storage gig = gigs[_gigId];
 
         for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {
@@ -351,7 +351,7 @@ contract MetaCollab is ICollab, Initializable, Context, ReentrancyGuard {
         uint8 rewardDenom = _rewardRatio[0] + _rewardRatio[1];
         require(
             feeRewardDenom != 0 && feeDenom != 0 && rewardDenom != 0,
-            "invalid distribution"
+            "invalid ratio"
         );
 
         for (uint256 i = 0; i < gig.tokens.length; i = i + 1) {

@@ -805,4 +805,157 @@ describe('MetaCollab', () => {
       expect(gig.status).to.equal(GigStatus.locked);
     });
   });
+
+  describe('completeGig', () => {
+    it('Should revert complete if invalid signatures', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.completeGig,
+        values: [collab.address, 0, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[2],
+      ]);
+
+      const tx = collab.completeGig(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid signatures');
+    });
+
+    it('Should revert complete if invalid data', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.completeGig,
+        values: [ZERO_ADDRESS, 0, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.completeGig(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid data');
+    });
+
+    it('Should revert complete if invalid gig', async () => {
+      await createTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.completeGig,
+        values: [collab.address, 0, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.completeGig(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid gig');
+    });
+
+    it('Should revert complete if invalid ratio', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.completeGig,
+        values: [collab.address, 0, [0, 0]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      const tx = collab.completeGig(encodedData, signatures);
+      await expect(tx).to.be.revertedWith('invalid ratio');
+    });
+
+    it('Should complete gig', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.completeGig,
+        values: [collab.address, 0, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[1].address, 10)
+        .returns(true);
+
+      const tx = await collab.completeGig(encodedData, signatures);
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigDone').withArgs(0, [0, 1]);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.status).to.equal(GigStatus.done);
+    });
+
+    it('Should complete gig in countdown', async () => {
+      await startTestGig(
+        collab,
+        signers,
+        [firstToken],
+        [10],
+        signers[2].address,
+      );
+
+      await collab.lockGig(0);
+
+      const data = {
+        types: TYPES.completeGig,
+        values: [collab.address, 0, [0, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[1].address, 10)
+        .returns(true);
+
+      const tx = await collab.completeGig(encodedData, signatures);
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigDone').withArgs(0, [0, 1]);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.status).to.equal(GigStatus.done);
+    });
+
+    it('Should complete gig with reward ratio', async () => {
+      await startTestGig(collab, signers, [firstToken], [10], ZERO_ADDRESS);
+
+      const data = {
+        types: TYPES.completeGig,
+        values: [collab.address, 0, [1, 1]],
+      };
+      const [encodedData, signatures] = await multisig(data, [
+        signers[0],
+        signers[1],
+      ]);
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[0].address, 5)
+        .returns(true);
+
+      await firstToken.mock.transferFrom
+        .withArgs(collab.address, signers[1].address, 5)
+        .returns(true);
+
+      const tx = await collab.completeGig(encodedData, signatures);
+      await tx.wait();
+
+      await expect(tx).to.emit(collab, 'GigDone').withArgs(0, [1, 1]);
+
+      const gig: Gig = await getGig(collab, 0);
+      expect(gig.status).to.equal(GigStatus.done);
+    });
+  });
 });

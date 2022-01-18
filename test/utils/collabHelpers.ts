@@ -7,7 +7,6 @@ import { ethers } from 'hardhat';
 import { MetaCollab } from '../../types/MetaCollab';
 import { multisig } from './ethersHelpers';
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const EMPTY_BYTES32 =
   '0x0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -37,7 +36,6 @@ export enum GigStatus {
   locked,
   resolved,
   cancelled,
-  expired,
   done,
 }
 
@@ -108,7 +106,7 @@ export const createTestGig = async (
   resolver: string,
 ): Promise<ContractTransaction> => {
   const data = {
-    types: TYPES.startNewGig,
+    types: TYPES.createNewGig,
     values: [
       EMPTY_BYTES32,
       tokens.map(t => t.address),
